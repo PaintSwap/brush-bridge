@@ -1,8 +1,8 @@
-# Web3 Speed Checker
+# BRUSH Bridge
 
-Compare the finality of different EVM networks
+Bridge BRUSH between Fantom and Sonic
 
-### Live at https://speedchecker.paintswap.io
+### Live at https://bridge.paintswap.io
 
 ## Development
 

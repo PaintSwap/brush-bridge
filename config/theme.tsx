@@ -1,5 +1,5 @@
 import { createTheme } from '@mui/material/styles'
-import { red } from '@mui/material/colors'
+import { orange, red } from '@mui/material/colors'
 
 declare module '@mui/material/styles' {
   interface Palette {
@@ -16,15 +16,20 @@ palette: {
     mode: 'dark', //default theme
     primary: {
       main: '#164ba8',
+      contrastText: '#FFFFFFFF',
     },
     secondary: {
       main: 'rgb(250, 250, 250)',
+      contrastText: '#FFFFFFFF',
     },
     subtle: {
       main: '#7d8fd1',
     },
     error: {
-      main: red.A400,
+      main: red[600],
+    },
+    warning: {
+      main: orange[600],
     },
   },
 })

@@ -29,6 +29,7 @@
   text-align: center;
   margin-bottom: 1rem;
   margin-top: 4px;
+  color: #7d8fd1;
 }
 
 .sub {
@@ -44,15 +45,28 @@
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  background: #0f1631e6;
+  background: #1c0f319e;
   border-radius: 16px;
   padding: 32px;
-  min-width: 500px;
+  min-width: 540px;
   overflow-y: hidden;
 }
 
 .mainButton {
   width: 200px;
+}
+
+.linkContent {
+  color: #25a4d7;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.linkContent:hover {
+  color: #25a4d7;
+  text-decoration: none;
+  cursor: pointer;
+  filter: brightness(1.2);
 }
 
 /* Small Mobile */

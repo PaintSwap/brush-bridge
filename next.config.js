@@ -10,6 +10,10 @@ const nextConfig = {
   reactStrictMode: true,
   swcMinify: true,
   output: 'export',
+  // Must be unoptimized when export output is used
+  images: {
+    unoptimized: true,
+  },
   // assetPrefix: assetPrefix,
   // basePath: basePath
 

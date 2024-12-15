@@ -1,365 +1,505 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Manrope } from "next/font/google"
 import styles from "@/styles/Home.module.css"
 import type { NextPage } from 'next'
 import { useWeb3Modal } from '@web3modal/wagmi/react'
-import { useAccount, useWriteContract } from 'wagmi'
-import { abbreviateAddressAsString, trackEvent } from '@/helpers/Utilities'
-import { Button, Divider, Box, Stack } from '@mui/material'
-import { TextNormal, TextSubtle } from '@/Components/StyledComps'
-import contractABI from "../helpers/SonicABI"
-import usePersistState from "../helpers/usePersistState"
+import { fallback, useAccount, useWriteContract } from 'wagmi'
+import { abbreviateAddressAsString, formatNumber, sleep, trackEvent } from '@/helpers/Utilities'
+import { Button, Divider, Box, Stack, ToggleButtonGroup, ToggleButton } from '@mui/material'
+import { TextNormal } from '@/Components/StyledComps'
 import Head from "next/head"
-import { wagmiConfig } from "@/pages/_app"
-import { waitForTransactionReceipt } from "@wagmi/core"
-import useNFTBalance from "@/hooks/useNFTBalance"
+import { createHttpTransports, wagmiConfig } from "@/pages/_app"
 import NetworkButton from "@/Components/NetworkButton"
-import useBlockNumber from "@/hooks/useBlockNumber"
-import MintingButton from "@/Components/MintingButton"
-import SpeedDisplay, { chainConfigType, SpeedList } from "@/Components/SpeedDisplay"
+import { SONIC_CHAIN_ID, FANTOM_CHAIN_ID, FANTOM_RPC_URLS, SONIC_RPC_URLS, fantomCustom, sonic, brushAddress, mediaQueries } from "@/config/constants"
+import { createPublicClient, formatEther, isAddress, pad, parseEther } from "viem"
+import { FieldValues, useForm, useWatch } from 'react-hook-form'
+import useMaterialToast from "@/hooks/useMaterialToast"
+import { useTxHooksBrushBridge } from "@/hooks/useTxHooksBrushBridge"
+import { useTxHooksBrush } from "@/hooks/useTxHooksBrush"
+import { useBrushBridgeFromFantom, useBrushBridgeFromSonic } from "@/hooks/useContract"
+import useMultichainTokenBalance from "@/hooks/useMultichainTokenBalance"
+import { useBrushAllowance } from "@/hooks/useAllowance"
+import { Options } from '@layerzerolabs/lz-v2-utilities'
+import { readContract } from 'wagmi/actions'
+import SuperText from "@/Components/SuperText"
+import SuperButton from "@/Components/SuperButton"
+import { FormInputText } from "@/Components/FormInputText"
+import Image from "next/image"
 
 const manrope = Manrope({ subsets: ["latin"] })
 
-const nullSpeed = [
-  {chain: "Sonic", chainId: 57054, speed: [], average: -1},
-  {chain: "Fantom", chainId: 250, speed: [], average: -1},
-  {chain: "Avalanche", chainId: 43114, speed: [], average: -1},
-  {chain: "Celo", chainId: 42220, speed: [], average: -1},
-  {chain: "Kava", chainId: 2222, speed: [], average: -1},
-  {chain: "Arbitrum", chainId: 42161, speed: [], average: -1},
-  {chain: "Base", chainId: 8453, speed: [], average: -1},
-  {chain: "Optimism", chainId: 10, speed: [], average: -1},
-  {chain: "Polygon", chainId: 137, speed: [], average: -1}
-]
+const noFantom = (isFantom: boolean) => {
+  return (
+    <>
+      {!isFantom && (
+        <>
+          <Stack width="100%" spacing={2} alignItems="center">
+            <SuperText textAlign="center" width="100%" fontSize="14px" color="warning">
+              {`Switch to Fantom Network`}
+            </SuperText>
+          </Stack>
+        </>
+      )}
+    </>
+  )
+}
 
-const chainConfig: {[key: number]: chainConfigType} = {
-  250: {
-    label: "Fantom",
-    confirmations: 1,
-    contractAddress: "0x493F7909E5CA979646Abb86A81a11701420B784F"
-  },
-  43114: {
-    label: "Avalanche",
-    confirmations: 1,
-    contractAddress: "0x493F7909E5CA979646Abb86A81a11701420B784F"
-  },
-  57054: {
-    label: "Sonic (Blaze)",
-    confirmations: 1,
-    contractAddress: "0x493F7909E5CA979646Abb86A81a11701420B784F"
-  },
-  42220: {
-    label: "Celo",
-    confirmations: 1,
-    contractAddress: "0xE610df966B3eD42b9251CEEAa34099736C65FFC9"
-  },
-  2222: {
-    label: "Kava",
-    confirmations: 1,
-    contractAddress: "0x493F7909E5CA979646Abb86A81a11701420B784F"
-  },
-  42161: {
-    label: "Arbitrum One",
-    confirmations: 300,
-    contractAddress: "0x493F7909E5CA979646Abb86A81a11701420B784F"
-  },
-  8453: {
-    label: "Base",
-    confirmations: 78,
-    contractAddress: "0x493F7909E5CA979646Abb86A81a11701420B784F"
-  },
-  10: {
-    label: "Optimism",
-    confirmations: 78,
-    contractAddress: "0x493F7909E5CA979646Abb86A81a11701420B784F"
-  },
-  137: {
-    label: "Polygon Pos",
-    confirmations: 50,
-    contractAddress: "0x493F7909E5CA979646Abb86A81a11701420B784F"
-  }
+const noSonic = (isSonic: boolean) => {
+  return (
+    <>
+      {!isSonic && (
+        <>
+          <Stack width="100%" spacing={2} alignItems="center">
+            <SuperText textAlign="center" width="100%" fontSize="14px" color="warning">
+              {`Switch to Sonic Network`}
+            </SuperText>
+          </Stack>
+        </>
+      )}
+    </>
+  )
+}
+
+interface MessagingFee {
+  nativeFee: bigint
+  lzTokenFee: bigint
 }
 
 const Home: NextPage = () => {
   const [showAddress, setShowAddress] = useState<`0x${string}` | undefined>(undefined)
   const [networkValue, setNetworkValue] = useState<number>(250)
-  const [startTime, setStartTime] = useState<number>(0)
-  const [isMinting, setIsMinting] = useState(false)
-  const [txSpeedsState, setTxSpeedsState] = useState<SpeedList[]>(nullSpeed)
-  const [txSpeeds, setTxSpeeds] = usePersistState<SpeedList[]>(nullSpeed, 'txSpeedHistoryV2')
-  const [latestMintedBlockNumber0Conf, setLatestMintedBlockNumber0Conf] = useState<number>(0)
-  const [resetKey, setResetKey] = useState(0)
-  const [scrollToLatest, setScrollToLatest] = useState(false)
+  const [direction, setDirection] = useState(0)
+  const [isApproving, setIsApproving] = useState(false)
+  const [isBridging, setIsBridging] = useState(false)
+  const [isApproved, setIsApproved] = useState(false)
+  // Start with a high number to avoid flashing text
+  const [brushAllowance, setBrushAllowance] = useState<bigint>(1000000000000000000000000n)
 
-  const { address, chain } = useAccount()
-  const { data: blockNumber } = useBlockNumber({refresh: latestMintedBlockNumber0Conf > 0})
+  const { address: account, chain } = useAccount()
   const { open } = useWeb3Modal()
   const { writeContractAsync } = useWriteContract()
-  const { data: totalNFTs, refetch: refetchNFTs } = useNFTBalance({ address, contractAddress: chainConfig[chain?.id ?? 250].contractAddress, abi: contractABI, chainId: chain?.id ?? 250 })
-  const hasUpdatedChainInfo = useRef(false)
 
-  // Current confirmations since last mint
-  const currentConfirmations = useMemo(() => {
-    if (!blockNumber || !latestMintedBlockNumber0Conf || chainConfig[chain?.id ?? 250].confirmations <= 1) {
-      return 0
-    }
-    // If currentConfirmations exceeds confirmations, set it default chain confirmations
-    return Math.max(0, Math.min(Number(blockNumber) - latestMintedBlockNumber0Conf, chainConfig[chain?.id ?? 250].confirmations))
-  }, [blockNumber, latestMintedBlockNumber0Conf, chain?.id])
+  const fantomClient: any = createPublicClient({
+    chain: fantomCustom,
+    transport: fallback([...createHttpTransports(FANTOM_RPC_URLS)], { rank: { interval: 60_000 } }),
+  })
 
-  const isMintingLoading = useMemo(() => showAddress && isMinting, [showAddress, isMinting])
+  const sonicClient: any = createPublicClient({
+    chain: sonic,
+    transport: fallback([...createHttpTransports(SONIC_RPC_URLS)], { rank: { interval: 60_000 } }),
+  })
+
+  const isFantom = chain?.id === FANTOM_CHAIN_ID
+  const isSonic = chain?.id === SONIC_CHAIN_ID
+  const isWrongNetwork = direction === 0 && !isFantom || direction === 1 && !isSonic
+
   const projectId = process.env?.NEXT_PUBLIC_WC_ID || ''
-
-  // To force remount of MintingButton after minting
-  // Which will reset the timer
-  const handleResetTime = useCallback(() => {
-    setResetKey(prev => prev + 1)
-  }, [])
-
-  // Append latest speed to matching network list
-  const appendSpeed = useCallback((chainId: number, speed: number) => {
-    const newSpeeds = txSpeeds.map((x) => {
-      if (x?.chainId === chainId) {
-        x.speed.push({speed: speed, timestamp: Date.now()})
-        x.average = x.speed.reduce((sum, current) => sum + current.speed, 0) / x.speed.length
-      }
-      return x
-    })
-    setTxSpeeds(newSpeeds)
-    setScrollToLatest(true)
-  }, [txSpeeds, setTxSpeeds])
-
-  const onMint = async () => {
-    setIsMinting(true)
-    try {
-      const hash = await writeContractAsync({
-        address: chainConfig[chain?.id ?? 250].contractAddress as `0x${string}`,
-        abi: contractABI,
-        functionName: "mint",
-        args: [],
-      })
-      console.info("START", Date.now())
-      console.info("Confirmations to wait for", chainConfig[chain?.id ?? 250].confirmations)
-      setStartTime(Date.now())
-      const localStartTime = Date.now()
-
-      // Reset latest minted block number
-      setLatestMintedBlockNumber0Conf(0)
-
-      // If confirmations are above 1, make a simple receipt check first to save the block number
-      if (chainConfig[chain?.id ?? 250].confirmations > 1) {
-        let initReceipt
-        for (let i = 0; i <= 120; ++i) {
-          try {
-            initReceipt = await waitForTransactionReceipt(wagmiConfig, {
-              hash: hash,
-              confirmations: 1,
-            })
-            break
-          } catch (e) {
-            console.info("Error on init confirmation", e)
-            console.info("Retrying init confirmation...")
-          }
-          await new Promise((resolve) => setTimeout(resolve, 1000))
-        }
-        if (initReceipt?.status === "success") {
-          setLatestMintedBlockNumber0Conf(Number(initReceipt.blockNumber ?? 0))
-        }
-      }
-
-      let receipt
-      for (let i = 0; i <= 1800; ++i) {
-        try {
-          receipt = await waitForTransactionReceipt(wagmiConfig, {
-            hash: hash,
-            onReplaced: (replacement) => console.info("Tx replaced:", replacement),
-            confirmations: chainConfig[chain?.id ?? 250].confirmations,
-          })
-          break
-        } catch (e) {
-          console.info("Error", e)
-          console.info("Retrying...")
-          if (i === 1800) {
-            throw e
-          }
-        }
-        // Sleep for 1 second, for a max of 30 minutes (i <= 1800)
-        await new Promise((resolve) => setTimeout(resolve, 1000))
-      }
-      console.info("Receipt", receipt)
-      if (receipt?.status === "success") {
-        const diff = Date.now() - localStartTime
-        console.info(`Time taken ${diff}ms`)
-        if (chain?.id) {
-          appendSpeed(chain.id, diff)
-        }
-        refetchNFTs()
-        trackEvent(`${chain?.name} tx`, undefined, undefined, diff < 1000 ? Math.round(diff / 100) * 100 : Math.round(diff / 500) * 500)
-      } else {
-        console.error("Tx failed", receipt)
-      }
-    } catch (error: any) {
-      console.error(error)
-      trackEvent("Mint Error", "Contract")
-    } finally {
-      setIsMinting(false)
-      setStartTime(0)
-      handleResetTime()
-      setLatestMintedBlockNumber0Conf(0)
-    }
-  }
 
   useEffect(() => {
     console.info("WC", `${projectId?.slice(0, 4)}...`)
   }, [projectId])
 
-  // If the txSpeeds has a missing chain, add it
   useEffect(() => {
-    if (hasUpdatedChainInfo.current) {
-      return
-    }
-    // Remove row with chainId 64165
-    const txSpeedsFixed = txSpeeds.filter((x) => x?.chainId !== 64165)
-    const missingChain = nullSpeed.find((x) => !txSpeedsFixed.find((y) => y.chainId === x.chainId))
-    if (missingChain) {
-      const newTxSpeeds = [...txSpeedsFixed, missingChain]
-      // Move chainId 57054 to the top
-      newTxSpeeds.sort((a, b) => a.chainId === 57054 ? -1 : b.chainId === 57054 ? 1 : 0)
-      setTxSpeeds(newTxSpeeds)
-      hasUpdatedChainInfo.current = true
-    }
-  }, [txSpeeds, setTxSpeeds])
-
-  useEffect(() => {
-    if (scrollToLatest) {
-      // Reset the scroll flag after a short delay
-      const timer = setTimeout(() => setScrollToLatest(false), 100)
-      return () => clearTimeout(timer)
-    }
-  }, [scrollToLatest])
-
-  useEffect(() => {
-    if (address) {
-      setShowAddress(address)
+    if (account) {
+      setShowAddress(account)
     } else {
       setShowAddress(undefined)
     }
-  }, [address])
+  }, [account])
 
-  useEffect(() => {
-    if (txSpeeds) {
-      setTxSpeedsState(txSpeeds)
-    } else {
-      setTxSpeedsState(nullSpeed)
-    }
-  }, [txSpeeds])
-
-  // Reset everything when the network changes
+  // When the network changes
   useEffect(() => {
     if (chain?.id && chain?.id !== networkValue) {
       setNetworkValue(chain.id)
-      setIsMinting(false)
-      setStartTime(0)
-      handleResetTime()
-      setLatestMintedBlockNumber0Conf(0)
     }
-  }, [chain?.id, networkValue, setIsMinting, setStartTime, handleResetTime, setLatestMintedBlockNumber0Conf])
+  }, [chain?.id, networkValue])
+
+  const {
+    handleSubmit,
+    setValue,
+    trigger,
+    control,
+    formState: { isValid },
+  } = useForm({
+    mode: 'onChange',
+    shouldUseNativeValidation: false,
+  })
+
+  const inputValue = useWatch({
+    control,
+    name: 'amount',
+  })
+
+  const inputAddress = useWatch({
+    control,
+    name: 'address',
+  })
+
+  const validInputValue: string = useMemo(() => {
+    return Number.isFinite(Number(inputValue)) ? inputValue?.toString() ?? '0' : '0'
+  }, [inputValue])
+
+  const mToast = useMaterialToast()
+  const toastError = mToast?.toastError
+  const toastSuccess = mToast?.toastSuccess
+  const bridgeFromFantom = useBrushBridgeFromFantom()
+  const bridgeFromSonic = useBrushBridgeFromSonic()
+  const { estimateGasAndSendBrushBridgeSendFromFantom, estimateGasAndSendBrushBridgeSendFromSonic } =
+    useTxHooksBrushBridge()
+  const { estimateGasAndSendBrushApprove } = useTxHooksBrush()
+
+  const { data: sonicBrushBalanceWei, refetch: refetchSonic } = useMultichainTokenBalance({
+    client: sonicClient,
+    tokenAddress: brushAddress,
+    address: account,
+    refresh: true,
+  })
+  const { data: fantomBrushBalanceWei, refetch: refetchFantom } = useMultichainTokenBalance({
+    client: fantomClient,
+    tokenAddress: brushAddress,
+    address: account,
+    refresh: true,
+  })
+  const sonicBrushBalance = formatEther(sonicBrushBalanceWei ?? 0n)
+  const fantomBrushBalance = formatEther(fantomBrushBalanceWei ?? 0n)
+
+  const { data: brushAllowanceFetched } = useBrushAllowance(bridgeFromFantom.address, true)
+
+  useEffect(() => {
+    if (brushAllowanceFetched !== null) {
+      setBrushAllowance(brushAllowanceFetched ?? 0n)
+    }
+  }, [brushAllowanceFetched])
+
+  // Set setIsApproved to false if account changes to reset the approval step
+  useEffect(() => {
+    setIsApproved(false)
+    setValue('address', account)
+  }, [account, setValue])
+
+  // If direction is 0 but isSonic, switch to fantom
+  // If direction is 1 but isFantom, switch to sonic
+  /**
+  useEffect(() => {
+    if (direction === 0 && !isFantom) {
+      switchChain({chainId: 250})
+    } else if (direction === 1 && !isSonic) {
+      switchChain({ chainId: IS_BETA ? SONIC_TESTNET_CHAIN_ID : SONIC_CHAIN_ID })
+    }
+  }, [direction, isSonic, isFantom, switchChain])
+  */
+
+  const needApproval = useMemo(
+    () => brushAllowance < parseEther(validInputValue) && !isApproved && direction === 0,
+    [brushAllowance, isApproved, validInputValue, direction],
+  )
+
+  const toggleDirection = (direction: number) => {
+    setDirection(direction)
+  }
+
+  const onBridge = async (data: FieldValues) => {
+    const amountToBridge = parseEther(data.amount ?? '0')
+    const bridgeToAddress = data.address
+    if (
+      !account ||
+      !amountToBridge ||
+      !bridgeToAddress ||
+      !isAddress(bridgeToAddress, { strict: false }) ||
+      bridgeToAddress.toLowerCase() !== inputAddress.toLowerCase() ||
+      data.amount !== inputValue
+    )
+      return
+    const fromFantom = direction === 0
+
+    if (fromFantom) {
+      // Approve brush if sending from fantom
+      if (needApproval) {
+        setIsApproving(true)
+        try {
+          await estimateGasAndSendBrushApprove([bridgeFromFantom.address, amountToBridge])
+          toastSuccess && toastSuccess(`Approved BRUSH!`, 'Success')
+        } catch (e) {
+          console.error('Failed approving BRUSH:', e)
+          toastError && toastError(`Could not approve BRUSH. Please try again.`, 'Failed')
+          return
+        } finally {
+          // Give some time for rpc to update
+          await sleep(2000)
+          setIsApproving(false)
+          setIsApproved(false)
+          setIsBridging(false)
+        }
+      }
+    }
+
+    if (fromFantom) {
+      console.info(`Bridging ${data.amount} BRUSH from Fantom to Sonic`)
+    } else {
+      console.info(`Bridging ${data.amount} BRUSH from Sonic to Fantom`)
+    }
+    setIsBridging(true)
+
+    try {
+      // Construct send parameters
+      const options = Options.newOptions().addExecutorLzReceiveOption(200_000, 0).toHex().toString()
+
+      const sendParams = {
+        // TODO sonic: change to sonic (I think)
+        dstEid: fromFantom ? 30112 : 30112, // Fantom or sonic
+        to: pad(bridgeToAddress, { size: 32 }), // Convert address to bytes32
+        amountLD: amountToBridge,
+        minAmountLD: amountToBridge,
+        extraOptions: options,
+        composeMsg: '0x',
+        oftCmd: '0x',
+      }
+
+      // Get bridge fee
+      const bridgeFee = (await readContract(wagmiConfig, {
+        abi: fromFantom ? bridgeFromFantom.abi : bridgeFromSonic.abi,
+        address: fromFantom ? bridgeFromFantom.address as `0x${string}` : bridgeFromSonic.address as `0x${string}`,
+        functionName: 'quoteSend',
+        args: [sendParams, false],
+      })) as MessagingFee
+
+      if (!bridgeFee || bridgeFee.nativeFee === 0n) {
+        toastError && toastError(`Can't get bridge fee. Please try again.`, 'Failed')
+        return
+      }
+
+      console.info(`Bridge fee:`, bridgeFee)
+
+      const feeStruct = {
+        nativeFee: bridgeFee.nativeFee,
+        lzTokenFee: 0n,
+      }
+
+      // Execute bridge transaction
+      const bridgeFunction = fromFantom
+        ? estimateGasAndSendBrushBridgeSendFromFantom
+        : estimateGasAndSendBrushBridgeSendFromSonic
+
+      const { receipt, events } = await bridgeFunction([sendParams, feeStruct, account], bridgeFee.nativeFee)
+
+      console.info(`Bridge receipt:`, receipt)
+      if (fromFantom) {
+        toastSuccess && toastSuccess(`Bridged ${data.amount} BRUSH to Sonic!`, 'Success')
+      } else {
+        toastSuccess && toastSuccess(`Bridged ${data.amount} BRUSH to Fantom!`, 'Success')
+      }
+
+      // Clear input after successful bridge
+      setValue('amount', '')
+
+      // Refresh balances
+      await sleep(1000)
+      refetchFantom()
+      refetchSonic()
+
+      trackEvent('BRUSH Bridging', `Bridged BRUSH to ${fromFantom ? 'Sonic' : 'Fantom'}`, `Bridge done`)
+    } catch (e) {
+      console.error('Failed bridging BRUSH:', e)
+      toastError && toastError(`Could not bridge BRUSH. Please try again.`, 'Failed')
+      const err: any = e
+      trackEvent('BRUSH Bridging', `Failed: Bridging BRUSH to ${fromFantom ? 'Sonic' : 'Fantom'}`, `Contract Fail: ${err?.code}`)
+    } finally {
+      setIsBridging(false)
+      setIsApproved(false)
+    }
+  }
 
   return (
     <>
       <Head>
-        <title>Web3 Speed Checker</title>
-        <meta name="description" content="Compare the finality of different EVM networks" />
+        <title>$BRUSH Bridge</title>
+        <meta name="description" content="Bridge $BRUSH between Fantom and Sonic" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link rel="icon" href="/favicon.ico" />
 
-        <meta name="keywords" content="fantom, sonic, $S, evm, fvm, testnet, transactions, speed, tps, finality, confirmations, fast, crypto, base, arbitrum, optimism, polygon, avalanche, celo, kava" />
+        <meta name="keywords" content="brush, $brush, bridge, fantom, sonic, $S" />
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content="Web3 Speed Checker - Test the speed of EVM chains" />
-        <meta name="twitter:image" content="https://speedchecker.paintswap.io/og_v2.png" />
-        <meta name="twitter:domain" content="speedchecker.paintswap.io" />
+        <meta name="twitter:title" content="$BRUSH Bridge - Bridge $BRUSH between Fantom and Sonic" />
+        <meta name="twitter:image" content="https://bridge.paintswap.io/og_v2.png" />
+        <meta name="twitter:domain" content="bridge.paintswap.io" />
         <meta name="twitter:site" content="@paintoshi" />
         <meta name="twitter:creator" content="@paintoshi" />
-        <meta name="twitter:description" content="Compare the finality of different EVM networks" />
+        <meta name="twitter:description" content="Bridge $BRUSH between Fantom and Sonic" />
 
-        <meta property="og:title" content="Web3 Speed Checker - Test the speed of EVM chains" />
-        <meta property="og:description" content="Compare the finality of different EVM networks" />
-        <meta property="og:image" content="https://speedchecker.paintswap.io/og_v2.png" />
-        <meta property="og:url" content="https://speedchecker.paintswap.io" />
+        <meta property="og:title" content="$BRUSH Bridge - Bridge $BRUSH between Fantom and Sonic" />
+        <meta property="og:description" content="Bridge $BRUSH between Fantom and Sonic" />
+        <meta property="og:image" content="https://bridge.paintswap.io/og.png" />
+        <meta property="og:url" content="https://bridge.paintswap.io" />
       </Head>
       <main className={`${styles.main} ${manrope.className}`}>
         <div className={styles.center}>
           <div className={styles.mainPanel}>
-            <h1 className={styles.title}>Web3 Speed Checker</h1>
+            <h1 className={styles.title}>BRUSH Bridge</h1>
             <p className={styles.titleSub}>
-              Compare the finality of different EVM networks<br />
+              Move $BRUSH between Fantom and Sonic<br />
             </p>
-            <Stack width="100%" direction={{xs: "column", sm: "row"}} alignItems="center" justifyContent="center" spacing={2}>
-              {showAddress && (
-                <Button size="large" className={styles.mainButton} variant='contained' color="primary" onClick={() => open()}>{abbreviateAddressAsString(address ?? 'N/A')}</Button>
-              )}
-              {!showAddress && (
-                <Button size="large" className={styles.mainButton} variant='contained' color="primary" onClick={() => open()}>Connect Wallet</Button>
-              )}
-              <NetworkButton />
-            </Stack>
 
-            {showAddress && (
-              <>
-                {chain?.id === 57054 && (
-                  <Box mt="8px">
-                    <TextNormal fontSize="14px"><a href="https://blaze.soniclabs.com/account" target="_blank">
-                      Get Free Sonic $S</a>
-                    </TextNormal>
-                  </Box>
+            <Stack width="100%" spacing={2} alignItems="center" pt="16px">
+              <Stack width="100%" direction={{xs: "column", sm: "row"}} alignItems="center" justifyContent="space-between" spacing={2}>
+                {showAddress && (
+                  <Button size="large" className={styles.mainButton} variant='contained' color="primary" onClick={() => open()}>{abbreviateAddressAsString(account ?? 'N/A')}</Button>
                 )}
-              </>
-            )}
-            <Box width="100%" mt="16px" mb="16px">
-              <Divider />
-            </Box>
-            <Box mb="8px">
-              <TextNormal fontSize="14px">Owned: {totalNFTs?.toString() ?? 0} NFTs</TextNormal>
-            </Box>
-            <MintingButton
-              key={resetKey}
-              showAddress={showAddress}
-              isMinting={isMinting}
-              onMint={onMint}
-              isMintingLoading={isMintingLoading}
-              startTime={startTime}
-            />
-            {chainConfig[chain?.id ?? 250].confirmations > 1 && (
-              <Box mt="8px">
-                <TextSubtle fontSize="14px">
-                {`Confirmations: ${currentConfirmations} / ${chain?.id ? chainConfig[chain?.id].confirmations : "N/A"}`}
-                </TextSubtle>
-              </Box>
-            )}
-            <Box width="100%" mt="16px" mb="16px">
-              <Divider />
-            </Box>
-            <SpeedDisplay 
-              txSpeedsState={txSpeedsState}
-              chainConfig={chainConfig}
-              scrollToLatest={scrollToLatest}
-            />
-            <Box alignItems="center" mt="8px">
-              <Button variant='text' size="small" onClick={() => setTxSpeeds(nullSpeed)} style={{lineHeight: 1.2}}>
-                Clear Speed History
-              </Button>
-            </Box>
+                {!showAddress && (
+                  <Button size="large" className={styles.mainButton} variant='contained' color="primary" onClick={() => open()}>Connect Wallet</Button>
+                )}
+                <NetworkButton />
+              </Stack>
+              <Stack width="100%" spacing={2} alignItems="center">
+                <ToggleButtonGroup
+                  fullWidth={true}
+                  value={direction}
+                  size="medium"
+                  exclusive
+                  onChange={(event: any) => toggleDirection(Number(event.target.value))}
+                >
+                  <ToggleButton value={0} aria-label="fantom-to-sonic">
+                    To Sonic
+                  </ToggleButton>
+                  <ToggleButton value={1} aria-label="sonic-to-fantom">
+                    To Fantom
+                  </ToggleButton>
+                </ToggleButtonGroup>
+                {direction === 0 && !isFantom && noFantom(isFantom)}
+                {direction === 1 && !isSonic && noSonic(isSonic)}
+                <Stack width="fit-content" spacing={1} alignItems="center">
+                  <SuperText>BRUSH Balances</SuperText>
+                  <Stack spacing={2} width="100%" justifyContent="center" direction="row">
+                    <Stack spacing={1} alignItems="end" justifyContent="space-around">
+                      <SuperText fontSize="14px" color="subtle">
+                        On Fantom
+                      </SuperText>
+                      <SuperText fontSize="14px" color="subtle">
+                        On Sonic
+                      </SuperText>
+                    </Stack>
+                    <Stack spacing={1}  justifyContent="space-around">
+                      <Stack spacing={1} direction="row">
+                        <img src="/images/brush_dark.png" alt="$BRUSH" width="22px" height="22px" />
+                        <SuperText>{formatNumber(fantomBrushBalance, 0, 6)}</SuperText>
+                      </Stack>
+                      <Stack spacing={1} direction="row">
+                        <img src="/images/brush_dark.png" alt="$BRUSH" width="22px" height="22px" />
+                        <SuperText>{formatNumber(sonicBrushBalance, 0, 6)}</SuperText>
+                      </Stack>
+                    </Stack>
+                  </Stack>
+                </Stack>
+                <form onSubmit={handleSubmit(onBridge)} style={{ width: '100%' }}>
+                  <Stack width="100%" spacing={2}>
+                    <FormInputText
+                      mode="text"
+                      name="amount"
+                      control={control}
+                      label="BRUSH Amount"
+                      placeholder={direction === 0 ? fantomBrushBalance : sonicBrushBalance}
+                      autoComplete="off"
+                      disabled={isApproving || isBridging}
+                      disableReturn={true}
+                      min={0}
+                      max={direction === 0 ? Number(fantomBrushBalance) : Number(sonicBrushBalance)}
+                      endAdornment={
+                        <SuperButton
+                          size="small"
+                          variant="text"
+                          onClick={() => {
+                            setValue('amount', direction === 0 ? fantomBrushBalance : sonicBrushBalance)
+                            trigger('amount')
+                          }}
+                          style={{ marginLeft: '8px', padding: '0px 8px', minWidth: '40px', maxHeight: '24px' }}
+                          disableRipple
+                          disableFocusRipple
+                          disableTouchRipple
+                        >
+                          Max
+                        </SuperButton>
+                      }
+                      rules={{
+                        required: 'Required',
+                        min: {
+                          value: 0,
+                          message: `Min ${0}`,
+                        },
+                        max: {
+                          value: direction === 0 ? Number(fantomBrushBalance) : Number(sonicBrushBalance),
+                          message: `Max ${direction === 0 ? fantomBrushBalance : sonicBrushBalance}`,
+                        },
+                        pattern: {
+                          value: /^\d+\.*\d{0,18}$/,
+                          message: 'Must be a number',
+                        },
+                      }}
+                    />
+                    <FormInputText
+                      mode="text"
+                      name="address"
+                      control={control}
+                      label={
+                        <span style={{ color: '#ffffffb3' }}>
+                          Bridge To
+                          {account?.toLowerCase() === inputAddress?.toLowerCase() ? (
+                            <span style={{ color: '#66bb6a' }}>{` (Self)`}</span>
+                          ) : (
+                            <span style={{ color: '#ffa726' }}>{` (Other)`}</span>
+                          )}
+                        </span>
+                      }
+                      placeholder="0x..."
+                      autoComplete="off"
+                      disabled={isApproving || isBridging}
+                      disableReturn={true}
+                      endAdornment={
+                        <SuperButton
+                          size="small"
+                          variant="text"
+                          onClick={() => {
+                            setValue('address', account)
+                            trigger('address')
+                          }}
+                          style={{ marginLeft: '8px', padding: '0px 8px', minWidth: '40px', maxHeight: '24px' }}
+                          disableRipple
+                          disableFocusRipple
+                          disableTouchRipple
+                        >
+                          Self
+                        </SuperButton>
+                      }
+                      rules={{
+                        required: 'Address is required',
+                        validate: (value: string) => {
+                          return isAddress(value, { strict: false }) ? null : 'Invalid Address'
+                        },
+                      }}
+                    />
+                    <SuperButton
+                      size="large"
+                      type="submit"
+                      variant="contained"
+                      width="100%"
+                      loading={isApproving || isBridging}
+                      disabled={isApproving || isBridging || isWrongNetwork}
+                    >
+                      {needApproval ? (isApproving ? 'Approving...' : 'Approve') : isBridging ? 'Bridging...' : 'Bridge'}
+                    </SuperButton>
+                  </Stack>
+                </form>
+              </Stack>
+            </Stack>
             <Box width="100%" mt="16px" mb="16px">
               <Divider />
             </Box>
             <Box mb="0">
-              <a href="https://github.com/PaintSwap/speedchecker-frontend" target="_blank">Github Source</a>
+              <a href="https://paintswap.io" target="_blank" className={styles.linkContent}>
+                <Stack width="100%" direction="row" justifyContent="center" spacing={1}>
+                  <Image src="/images/paintswap_logo.svg" alt="PaintSwap" width={24} height={24} />
+                  <span>Visit PaintSwap</span>
+                </Stack>
+              </a>
             </Box>
-            {chain?.id === 57054 && (
-              <Box mt="8px">
-                <a href="https://blaze.soniclabs.com/" target="_blank">Sonic Blaze Dashboard</a>
-              </Box>
-            )}
           </div>
         </div>
       </main>

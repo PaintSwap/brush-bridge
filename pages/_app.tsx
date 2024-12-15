@@ -1,8 +1,7 @@
 import '@/styles/globals.css'
 import type { AppProps } from 'next/app'
 import { createWeb3Modal } from '@web3modal/wagmi/react'
-import { createConfig, http, WagmiProvider } from 'wagmi'
-import { avalanche, Chain, fantom, celo, kava, arbitrum, polygon, base, optimism } from 'wagmi/chains'
+import { createConfig, WagmiProvider, fallback, unstable_connector, http } from 'wagmi'
 import { ThemeProvider } from '@mui/material/styles'
 import CssBaseline from '@mui/material/CssBaseline'
 import { CacheProvider, EmotionCache } from '@emotion/react'
@@ -11,9 +10,22 @@ import createEmotionCache from '../config/createEmotionCache'
 import { coinbaseWallet, injected, walletConnect } from "wagmi/connectors"
 import ReactGA from "react-ga4"
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { fantomCustom, sonic } from '@/config/constants'
+import { MaterialToastsProvider } from '@/contexts/MaterialToastContext'
+import ToastSnacks from '@/Components/ToastSnacks'
+import { MaterialToastsProviderExtra } from '@/contexts/MaterialToastContextExtra'
+import ToastSnacksExtra from '@/Components/ToastSnacksExtra'
 
 // Client-side cache, shared for the whole session of the user in the browser.
 const clientSideEmotionCache = createEmotionCache()
+
+// Generate HTTP transports from an array of URLs
+export const createHttpTransports = (urls: string[]) => urls.map((url) => http(url))
+
+// Wallet RPC
+export const InjectedTransport = unstable_connector(injected, {
+  key: 'injected',
+})
 
 interface MyAppProps extends AppProps {
   emotionCache?: EmotionCache
@@ -26,59 +38,21 @@ const gaID = env?.NEXT_PUBLIC_GA_ID || ''
 
 // 2. Create wagmiConfig
 const metadata = {
-  name: 'Speed Checker',
-  description: 'Compare the finality of different EVM networks',
-  url: 'https://speedchecker.paintswap.io',
+  name: 'BRUSH Bridge',
+  description: 'Bridge BRUSH between Fantom and Sonic',
+  url: 'https://bridge.paintswap.io',
   icons: ['https://avatars.githubusercontent.com/u/37784886']
 }
 
-const sonic: Chain = {
-  ...fantom,
-  id: 57054,
-  contracts: {
-    multicall3: {
-      address: '0xF0c9d803C109518363cffa0319edA897E06d0230',
-      blockCreated: 16825253,
-    },
-  },
-  name: 'Sonic Testnet',
-  rpcUrls: {
-   default: {http: ['https://rpc.blaze.soniclabs.com'] as const},
-   public: {http: ['https://rpc.blaze.soniclabs.com'] as const}
-  },
-  blockExplorers: {
-    default: {
-      name: 'Sonic Explorer',
-      url: 'https://blaze.soniclabs.com/',
-    },
-  },
-  nativeCurrency: {
-    name: 'Sonic',
-    symbol: 'S',
-    decimals: 18,
-  },
-}
-
-const fantomCustom = {
-  ...fantom,
-  rpcUrls: {
-    default: {http: ['https://rpcapi.fantom.network/'] as const},
-    public: {http: ['https://rpcapi.fantom.network/'] as const}
-   },
-}
-
 export const wagmiConfig = createConfig({
-  chains: [sonic, fantomCustom, avalanche, celo, kava, arbitrum, base, optimism, polygon],
+  chains: [sonic, fantomCustom],
   transports: {
-    [sonic.id]: http(),
-    [fantomCustom.id]: http(),
-    [avalanche.id]: http(),
-    [celo.id]: http(),
-    [kava.id]: http(),
-    [arbitrum.id]: http(),
-    [base.id]: http(),
-    [optimism.id]: http(),
-    [polygon.id]: http(),
+    [sonic.id]: fallback([InjectedTransport], {
+      rank: { interval: 60_000 },
+    }),
+    [fantomCustom.id]: fallback([InjectedTransport], {
+      rank: { interval: 60_000 },
+    }),
   },
   connectors: [
     walletConnect({ projectId, metadata, showQrModal: false }),
@@ -120,9 +94,15 @@ export default function App(props: MyAppProps) {
       <QueryClientProvider client={queryClient}>
         <CacheProvider value={emotionCache}>
           <ThemeProvider theme={theme}>
-            {/* CssBaseline kickstart an elegant, consistent, and simple baseline to build upon. */}
-            <CssBaseline />
-            <Component {...pageProps} />
+            <MaterialToastsProvider>
+              <MaterialToastsProviderExtra>
+                {/* CssBaseline kickstart an elegant, consistent, and simple baseline to build upon. */}
+                <CssBaseline />
+                <ToastSnacks />
+                <ToastSnacksExtra />
+                <Component {...pageProps} />
+              </MaterialToastsProviderExtra>
+            </MaterialToastsProvider>
           </ThemeProvider>
         </CacheProvider>
       </QueryClientProvider>
