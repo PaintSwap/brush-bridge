@@ -336,6 +336,8 @@ const Home: NextPage = () => {
             <p className={styles.titleSub}>
               Move $BRUSH between Fantom and Sonic<br />
             </p>
+            <SuperText color="warning">DO NOT USE THIS YET</SuperText>
+            <SuperText color="warning">BRUSH WILL BE LOST!</SuperText>
 
             <Stack width="100%" spacing={2} alignItems="center" pt="16px">
               <Stack width="100%" direction={{xs: "column", sm: "row"}} alignItems="center" justifyContent="space-between" spacing={2}>
