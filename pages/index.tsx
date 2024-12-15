@@ -3,14 +3,13 @@ import { Manrope } from "next/font/google"
 import styles from "@/styles/Home.module.css"
 import type { NextPage } from 'next'
 import { useWeb3Modal } from '@web3modal/wagmi/react'
-import { fallback, useAccount, useWriteContract } from 'wagmi'
+import { fallback, useAccount } from 'wagmi'
 import { abbreviateAddressAsString, formatNumber, sleep, trackEvent } from '@/helpers/Utilities'
 import { Button, Divider, Box, Stack, ToggleButtonGroup, ToggleButton } from '@mui/material'
-import { TextNormal } from '@/Components/StyledComps'
 import Head from "next/head"
 import { createHttpTransports, wagmiConfig } from "@/pages/_app"
 import NetworkButton from "@/Components/NetworkButton"
-import { SONIC_CHAIN_ID, FANTOM_CHAIN_ID, FANTOM_RPC_URLS, SONIC_RPC_URLS, fantomCustom, sonic, brushAddress, mediaQueries } from "@/config/constants"
+import { SONIC_CHAIN_ID, FANTOM_CHAIN_ID, FANTOM_RPC_URLS, SONIC_RPC_URLS, fantomCustom, sonic, brushAddress } from "@/config/constants"
 import { createPublicClient, formatEther, isAddress, pad, parseEther } from "viem"
 import { FieldValues, useForm, useWatch } from 'react-hook-form'
 import useMaterialToast from "@/hooks/useMaterialToast"
@@ -77,7 +76,6 @@ const Home: NextPage = () => {
 
   const { address: account, chain } = useAccount()
   const { open } = useWeb3Modal()
-  const { writeContractAsync } = useWriteContract()
 
   const fantomClient: any = createPublicClient({
     chain: fantomCustom,
@@ -319,14 +317,14 @@ const Home: NextPage = () => {
 
         <meta name="keywords" content="brush, $brush, bridge, fantom, sonic, $S" />
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content="$BRUSH Bridge - Bridge $BRUSH between Fantom and Sonic" />
+        <meta name="twitter:title" content="BRUSH Bridge - Bridge $BRUSH between Fantom and Sonic" />
         <meta name="twitter:image" content="https://bridge.paintswap.io/og_v2.png" />
         <meta name="twitter:domain" content="bridge.paintswap.io" />
         <meta name="twitter:site" content="@paintoshi" />
         <meta name="twitter:creator" content="@paintoshi" />
         <meta name="twitter:description" content="Bridge $BRUSH between Fantom and Sonic" />
 
-        <meta property="og:title" content="$BRUSH Bridge - Bridge $BRUSH between Fantom and Sonic" />
+        <meta property="og:title" content="BRUSH Bridge - Bridge $BRUSH between Fantom and Sonic" />
         <meta property="og:description" content="Bridge $BRUSH between Fantom and Sonic" />
         <meta property="og:image" content="https://bridge.paintswap.io/og.png" />
         <meta property="og:url" content="https://bridge.paintswap.io" />
