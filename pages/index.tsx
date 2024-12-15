@@ -329,7 +329,7 @@ const Home: NextPage = () => {
         <meta property="og:image" content="https://bridge.paintswap.io/og.png" />
         <meta property="og:url" content="https://bridge.paintswap.io" />
       </Head>
-      <main className={`${styles.main} ${manrope.className}`}>
+      <main className={`${styles.main}`}>
         <div className={styles.center}>
           <div className={styles.mainPanel}>
             <h1 className={styles.title}>BRUSH Bridge</h1>
@@ -362,8 +362,8 @@ const Home: NextPage = () => {
                     To Fantom
                   </ToggleButton>
                 </ToggleButtonGroup>
-                {direction === 0 && !isFantom && noFantom(isFantom)}
-                {direction === 1 && !isSonic && noSonic(isSonic)}
+                {direction === 0 && !isFantom && account && noFantom(isFantom)}
+                {direction === 1 && !isSonic && account && noSonic(isSonic)}
                 <Stack width="fit-content" spacing={1} alignItems="center">
                   <SuperText>BRUSH Balances</SuperText>
                   <Stack spacing={2} width="100%" justifyContent="center" direction="row">
@@ -396,7 +396,7 @@ const Home: NextPage = () => {
                       label="BRUSH Amount"
                       placeholder={direction === 0 ? fantomBrushBalance : sonicBrushBalance}
                       autoComplete="off"
-                      disabled={isApproving || isBridging}
+                      disabled={isApproving || isBridging || isWrongNetwork || !account}
                       disableReturn={true}
                       min={0}
                       max={direction === 0 ? Number(fantomBrushBalance) : Number(sonicBrushBalance)}
@@ -448,7 +448,7 @@ const Home: NextPage = () => {
                       }
                       placeholder="0x..."
                       autoComplete="off"
-                      disabled={isApproving || isBridging}
+                      disabled={isApproving || isBridging || isWrongNetwork || !account}
                       disableReturn={true}
                       endAdornment={
                         <SuperButton
@@ -479,7 +479,7 @@ const Home: NextPage = () => {
                       variant="contained"
                       width="100%"
                       loading={isApproving || isBridging}
-                      disabled={isApproving || isBridging || isWrongNetwork}
+                      disabled={isApproving || isBridging || isWrongNetwork || !account}
                     >
                       {needApproval ? (isApproving ? 'Approving...' : 'Approve') : isBridging ? 'Bridging...' : 'Bridge'}
                     </SuperButton>
