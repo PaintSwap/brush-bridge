@@ -317,14 +317,14 @@ const Home: NextPage = () => {
 
         <meta name="keywords" content="brush, $brush, bridge, fantom, sonic, $S" />
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content="BRUSH Bridge - Bridge $BRUSH between Fantom and Sonic" />
-        <meta name="twitter:image" content="https://bridge.paintswap.io/og_v2.png" />
+        <meta name="twitter:title" content="BRUSH Bridge" />
+        <meta name="twitter:image" content="https://bridge.paintswap.io/og.png" />
         <meta name="twitter:domain" content="bridge.paintswap.io" />
         <meta name="twitter:site" content="@paintoshi" />
         <meta name="twitter:creator" content="@paintoshi" />
         <meta name="twitter:description" content="Bridge $BRUSH between Fantom and Sonic" />
 
-        <meta property="og:title" content="BRUSH Bridge - Bridge $BRUSH between Fantom and Sonic" />
+        <meta property="og:title" content="BRUSH Bridge" />
         <meta property="og:description" content="Bridge $BRUSH between Fantom and Sonic" />
         <meta property="og:image" content="https://bridge.paintswap.io/og.png" />
         <meta property="og:url" content="https://bridge.paintswap.io" />
