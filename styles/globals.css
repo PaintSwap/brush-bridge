@@ -37,17 +37,6 @@ body {
   background-size: 100% 100%;
 }
 
-/* Different background when device smaller than 1000px */
-@media (max-width: 1000px) {
-  body {
-    background: url('/images/sonic_bg_sub_mobile.jpg');
-    background-size: cover;
-    background-position: center;
-    background-repeat: no-repeat;
-    background-attachment: fixed;
-  }
-}
-
 a {
   color: #25a4d7;
   text-decoration: none;
