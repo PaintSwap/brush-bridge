@@ -64,7 +64,7 @@ const StyledButton = styled(
     </Tooltip>
   ),
 )`
-  border-radius: 10px;
+  border-radius: 4px;
   text-transform: capitalize;
   pointer-events: auto !important;
   padding-left: 16px;

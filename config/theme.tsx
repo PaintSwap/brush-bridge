@@ -1,5 +1,11 @@
 import { createTheme } from '@mui/material/styles'
 import { orange, red } from '@mui/material/colors'
+import { Manrope } from 'next/font/google'
+
+const orbitron = Manrope({
+  subsets: ['latin'],
+  display: 'swap',
+})
 
 declare module '@mui/material/styles' {
   interface Palette {
@@ -10,10 +16,12 @@ declare module '@mui/material/styles' {
   }
 }
 
-// Create a theme instance.
 const theme = createTheme({
-palette: {
-    mode: 'dark', //default theme
+  typography: {
+    fontFamily: orbitron.style.fontFamily,
+  },
+  palette: {
+    mode: 'dark',
     primary: {
       main: '#164ba8',
       contrastText: '#FFFFFFFF',
@@ -33,4 +41,5 @@ palette: {
     },
   },
 })
+
 export default theme

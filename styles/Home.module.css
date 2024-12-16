@@ -69,6 +69,15 @@
   filter: brightness(1.2);
 }
 
+.switchContent:hover {
+  cursor: pointer;
+  filter: brightness(0.95);
+}
+
+.switchContent:hover > img {
+  filter: brightness(0.95);
+}
+
 /* Small Mobile */
 @media (max-width: 400px) {
   .main {

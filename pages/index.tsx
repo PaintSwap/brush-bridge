@@ -3,9 +3,9 @@ import { Manrope } from "next/font/google"
 import styles from "@/styles/Home.module.css"
 import type { NextPage } from 'next'
 import { useWeb3Modal } from '@web3modal/wagmi/react'
-import { fallback, useAccount } from 'wagmi'
+import { fallback, useAccount, useSwitchChain } from 'wagmi'
 import { abbreviateAddressAsString, formatNumber, sleep, trackEvent } from '@/helpers/Utilities'
-import { Button, Divider, Box, Stack, ToggleButtonGroup, ToggleButton } from '@mui/material'
+import { Divider, Box, Stack, ToggleButtonGroup, ToggleButton, IconButton } from '@mui/material'
 import Head from "next/head"
 import { createHttpTransports, wagmiConfig } from "@/pages/_app"
 import NetworkButton from "@/Components/NetworkButton"
@@ -27,15 +27,16 @@ import Image from "next/image"
 
 const manrope = Manrope({ subsets: ["latin"] })
 
-const noFantom = (isFantom: boolean) => {
+const noFantom = (isFantom: boolean, switchChain: ({chainId}: {chainId: number}) => void) => {
   return (
     <>
       {!isFantom && (
         <>
-          <Stack width="100%" spacing={2} alignItems="center">
+          <Stack spacing={1} alignItems="center" direction="row" className={styles.switchContent} onClick={() => switchChain({chainId: 250})}>
             <SuperText textAlign="center" width="100%" fontSize="14px" color="warning">
               {`Switch to Fantom Network`}
             </SuperText>
+            <Image src="/images/fantom.png" alt="F" width={22} height={22} />
           </Stack>
         </>
       )}
@@ -43,15 +44,16 @@ const noFantom = (isFantom: boolean) => {
   )
 }
 
-const noSonic = (isSonic: boolean) => {
+const noSonic = (isSonic: boolean, switchChain: ({chainId}: {chainId: number}) => void) => {
   return (
     <>
       {!isSonic && (
         <>
-          <Stack width="100%" spacing={2} alignItems="center">
+          <Stack spacing={1} alignItems="center" direction="row" className={styles.switchContent} onClick={() => switchChain({chainId: SONIC_CHAIN_ID})}>
             <SuperText textAlign="center" width="100%" fontSize="14px" color="warning">
               {`Switch to Sonic Network`}
             </SuperText>
+            <Image src="/images/sonic.png" alt="S" width={22} height={22} />
           </Stack>
         </>
       )}
@@ -76,6 +78,14 @@ const Home: NextPage = () => {
 
   const { address: account, chain } = useAccount()
   const { open } = useWeb3Modal()
+  const { switchChain } = useSwitchChain({
+    config: wagmiConfig,
+    mutation: {
+      onSuccess() {
+        console.info('Switch Network Success')
+      },
+    },
+  })
 
   const fantomClient: any = createPublicClient({
     chain: fantomCustom,
@@ -182,7 +192,7 @@ const Home: NextPage = () => {
     if (direction === 0 && !isFantom) {
       switchChain({chainId: 250})
     } else if (direction === 1 && !isSonic) {
-      switchChain({ chainId: IS_BETA ? SONIC_TESTNET_CHAIN_ID : SONIC_CHAIN_ID })
+      switchChain({ chainId: SONIC_CHAIN_ID })
     }
   }, [direction, isSonic, isFantom, switchChain])
   */
@@ -329,25 +339,27 @@ const Home: NextPage = () => {
         <meta property="og:image" content="https://bridge.paintswap.io/og.png" />
         <meta property="og:url" content="https://bridge.paintswap.io" />
       </Head>
-      <main className={`${styles.main}`}>
+      <main className={`${manrope.className} ${styles.main}`}>
         <div className={styles.center}>
           <div className={styles.mainPanel}>
             <h1 className={styles.title}>BRUSH Bridge</h1>
             <p className={styles.titleSub}>
               Move $BRUSH between Fantom and Sonic<br />
             </p>
-            <SuperText color="warning">DO NOT USE THIS YET</SuperText>
-            <SuperText color="warning">BRUSH WILL BE LOST!</SuperText>
+            <Stack>
+              <SuperText color="warning">DO NOT USE THIS YET</SuperText>
+              <SuperText color="warning">BRUSH WILL BE LOST!</SuperText>
+            </Stack>
 
             <Stack width="100%" spacing={2} alignItems="center" pt="16px">
               <Stack width="100%" direction={{xs: "column", sm: "row"}} alignItems="center" justifyContent="space-between" spacing={2}>
                 {showAddress && (
-                  <Button size="large" className={styles.mainButton} variant='contained' color="primary" onClick={() => open()}>{abbreviateAddressAsString(account ?? 'N/A')}</Button>
+                  <SuperButton size="large" width="100%" variant="contained" onClick={() => open()}>{abbreviateAddressAsString(account ?? 'N/A')}</SuperButton>
                 )}
                 {!showAddress && (
-                  <Button size="large" className={styles.mainButton} variant='contained' color="primary" onClick={() => open()}>Connect Wallet</Button>
+                  <SuperButton size="large" width="100%" variant="contained" onClick={() => open()}>Connect Wallet</SuperButton>
                 )}
-                <NetworkButton />
+                {/** <NetworkButton /> **/}
               </Stack>
               <Stack width="100%" spacing={2} alignItems="center">
                 <ToggleButtonGroup
@@ -364,8 +376,8 @@ const Home: NextPage = () => {
                     To Fantom
                   </ToggleButton>
                 </ToggleButtonGroup>
-                {direction === 0 && !isFantom && account && noFantom(isFantom)}
-                {direction === 1 && !isSonic && account && noSonic(isSonic)}
+                {direction === 0 && !isFantom && account && noFantom(isFantom, switchChain)}
+                {direction === 1 && !isSonic && account && noSonic(isSonic, switchChain)}
                 <Stack width="fit-content" spacing={1} alignItems="center">
                   <SuperText>BRUSH Balances</SuperText>
                   <Stack spacing={2} width="100%" justifyContent="center" direction="row">
@@ -379,11 +391,11 @@ const Home: NextPage = () => {
                     </Stack>
                     <Stack spacing={1}  justifyContent="space-around">
                       <Stack spacing={1} direction="row">
-                        <img src="/images/brush_dark.png" alt="$BRUSH" width="22px" height="22px" />
+                        <Image src="/images/brush_dark.png" alt="$BRUSH" width={22} height={22} />
                         <SuperText>{formatNumber(fantomBrushBalance, 0, 6)}</SuperText>
                       </Stack>
                       <Stack spacing={1} direction="row">
-                        <img src="/images/brush_dark.png" alt="$BRUSH" width="22px" height="22px" />
+                        <Image src="/images/brush_dark.png" alt="$BRUSH" width={22} height={22} />
                         <SuperText>{formatNumber(sonicBrushBalance, 0, 6)}</SuperText>
                       </Stack>
                     </Stack>
@@ -414,6 +426,7 @@ const Home: NextPage = () => {
                           disableRipple
                           disableFocusRipple
                           disableTouchRipple
+                          disabled={isApproving || isBridging || isWrongNetwork || !account}
                         >
                           Max
                         </SuperButton>
@@ -464,6 +477,7 @@ const Home: NextPage = () => {
                           disableRipple
                           disableFocusRipple
                           disableTouchRipple
+                          disabled={isApproving || isBridging || isWrongNetwork || !account}
                         >
                           Self
                         </SuperButton>
@@ -483,7 +497,7 @@ const Home: NextPage = () => {
                       loading={isApproving || isBridging}
                       disabled={isApproving || isBridging || isWrongNetwork || !account}
                     >
-                      {needApproval ? (isApproving ? 'Approving...' : 'Approve') : isBridging ? 'Bridging...' : 'Bridge'}
+                      {needApproval ? (isApproving ? 'Approving...' : 'Approve') : isBridging ? 'Bridging...' : `Bridge ${direction === 0 ? 'to Sonic' : 'to Fantom'}`}
                     </SuperButton>
                   </Stack>
                 </form>
