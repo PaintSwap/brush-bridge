@@ -4,7 +4,7 @@ import type { NextPage } from 'next'
 import { useWeb3Modal } from '@web3modal/wagmi/react'
 import { fallback, useAccount, useSwitchChain } from 'wagmi'
 import { abbreviateAddressAsString, formatNumber, sleep, trackEvent } from '@/helpers/Utilities'
-import { Divider, Box, Stack, ToggleButtonGroup, ToggleButton, IconButton } from '@mui/material'
+import { Divider, Box, Stack, ToggleButtonGroup, ToggleButton, IconButton, CircularProgress } from '@mui/material'
 import Head from "next/head"
 import { createHttpTransports, wagmiConfig } from "@/pages/_app"
 import NetworkButton from "@/Components/NetworkButton"
@@ -71,6 +71,8 @@ const Home: NextPage = () => {
   const [isApproving, setIsApproving] = useState(false)
   const [isBridging, setIsBridging] = useState(false)
   const [isApproved, setIsApproved] = useState(false)
+  const [isWaitingForFantomBalance, setIsWaitingForFantomBalance] = useState(false)
+  const [isWaitingForSonicBalance, setIsWaitingForSonicBalance] = useState(false)
   
   // Start with a high number to avoid flashing text
   const [brushAllowance, setBrushAllowance] = useState<bigint>(1000000000000000000000000n)
@@ -105,25 +107,6 @@ const Home: NextPage = () => {
 
   const projectId = process.env?.NEXT_PUBLIC_WC_ID || ''
 
-  useEffect(() => {
-    console.info("WC", `${projectId?.slice(0, 4)}...`)
-  }, [projectId])
-
-  useEffect(() => {
-    if (account) {
-      setShowAddress(account)
-    } else {
-      setShowAddress(undefined)
-    }
-  }, [account])
-
-  // When the network changes
-  useEffect(() => {
-    if (chain?.id && chain?.id !== networkValue) {
-      setNetworkValue(chain.id)
-    }
-  }, [chain?.id, networkValue])
-
   const {
     handleSubmit,
     setValue,
@@ -154,8 +137,8 @@ const Home: NextPage = () => {
   }, [inputValue])
 
   const disabledInputs = useMemo(() => {
-    return isApproving || isBridging || !account
-  }, [isApproving, isBridging, account])
+    return isApproving || isBridging || !account || isWaitingForFantomBalance || isWaitingForSonicBalance
+  }, [isApproving, isBridging, account, isWaitingForFantomBalance, isWaitingForSonicBalance])
 
   const mToast = useMaterialToast()
   const toastError = mToast?.toastError
@@ -182,6 +165,25 @@ const Home: NextPage = () => {
   const fantomBrushBalance = formatEther(fantomBrushBalanceWei ?? 0n)
 
   const { data: brushAllowanceFetched } = useBrushAllowance(bridgeFromFantom.address, true)
+
+  useEffect(() => {
+    console.info("WC", `${projectId?.slice(0, 4)}...`)
+  }, [projectId])
+
+  useEffect(() => {
+    if (account) {
+      setShowAddress(account)
+    } else {
+      setShowAddress(undefined)
+    }
+  }, [account])
+
+  // When the network changes
+  useEffect(() => {
+    if (chain?.id && chain?.id !== networkValue) {
+      setNetworkValue(chain.id)
+    }
+  }, [chain?.id, networkValue])
 
   useEffect(() => {
     if (brushAllowanceFetched !== null) {
@@ -220,6 +222,19 @@ const Home: NextPage = () => {
     }
     directionRef.current = direction
   }, [direction, trigger])
+
+  // Reset waiting for balances when balances updates
+  useEffect(() => {
+    if (fantomBrushBalanceWei !== undefined) {
+      setIsWaitingForFantomBalance(false)
+    }
+  }, [fantomBrushBalanceWei])
+
+  useEffect(() => {
+    if (sonicBrushBalanceWei !== undefined) {
+      setIsWaitingForSonicBalance(false)
+    }
+  }, [sonicBrushBalanceWei])
 
   const needApproval = useMemo(
     () => brushAllowance < parseEther(validInputValue) && !isApproved && direction === 0,
@@ -371,9 +386,11 @@ const Home: NextPage = () => {
 
       console.info(`Bridge receipt:`, receipt)
       if (fromFantom) {
-        toastSuccess && toastSuccess(`Bridged ${data.amount} BRUSH to Sonic! Funds will arrive shortly.`, 'Success')
+        toastSuccess && toastSuccess(`Sent ${data.amount} BRUSH! Funds will arrive on Sonic shortly.`, 'Success')
+        setIsWaitingForSonicBalance(true)
       } else {
-        toastSuccess && toastSuccess(`Bridged ${data.amount} BRUSH to Fantom! Funds will arrive shortly.`, 'Success')
+        toastSuccess && toastSuccess(`Sent ${data.amount} BRUSH! Funds will arrive on Fantom shortly.`, 'Success')
+        setIsWaitingForFantomBalance(true)
       }
 
       // Clear input after successful bridge
@@ -437,20 +454,26 @@ const Home: NextPage = () => {
                 {/** <NetworkButton /> **/}
               </Stack>
               <Stack width="100%" spacing={2} alignItems="center">
-                <ToggleButtonGroup
-                  fullWidth={true}
-                  value={direction}
-                  size="medium"
-                  exclusive
-                  onChange={(event: any) => toggleDirection(Number(event.target.value))}
-                >
-                  <ToggleButton value={0} aria-label="fantom-to-sonic">
-                    To Sonic
-                  </ToggleButton>
-                  <ToggleButton value={1} aria-label="sonic-to-fantom">
-                    To Fantom
-                  </ToggleButton>
-                </ToggleButtonGroup>
+                <Stack width="100%" spacing={1.5} alignItems="center">
+                  <ToggleButtonGroup
+                    fullWidth={true}
+                    value={direction}
+                    size="medium"
+                    exclusive
+                    onChange={(event: any) => toggleDirection(Number(event.target.value))}
+                    disabled={disabledInputs}
+                  >
+                    <ToggleButton value={0} aria-label="fantom-to-sonic">
+                      To Sonic
+                    </ToggleButton>
+                    <ToggleButton value={1} aria-label="sonic-to-fantom">
+                      To Fantom
+                    </ToggleButton>
+                  </ToggleButtonGroup>
+                  {direction === 1 && (
+                    <SuperText fontSize="12px" lineHeight={0.5} color="warning">Sonic to Fantom bridge ends on Mar 28th, 2025</SuperText>
+                  )}
+                </Stack>
                 <Stack width="fit-content" spacing={0.5} alignItems="center">
                   <SuperText>BRUSH Balances</SuperText>
                   <Stack spacing={2} width="100%" justifyContent="center" direction="row">
@@ -463,17 +486,21 @@ const Home: NextPage = () => {
                       </SuperText>
                     </Stack>
                     <Stack spacing={1}  justifyContent="space-around">
-                      <Stack spacing={1} direction="row">
+                      <Stack spacing={1} direction="row" alignItems="center">
                         <Image src="/images/brush_dark.png" alt="$BRUSH" width={22} height={22} />
                         <SuperText>{formatNumber(fantomBrushBalance, 0, 6)}</SuperText>
+                        {isWaitingForFantomBalance && <CircularProgress size={18} />}
                       </Stack>
-                      <Stack spacing={1} direction="row">
+                      <Stack spacing={1} direction="row" alignItems="center">
                         <Image src="/images/brush_dark.png" alt="$BRUSH" width={22} height={22} />
                         <SuperText>{formatNumber(sonicBrushBalance, 0, 6)}</SuperText>
+                        {isWaitingForSonicBalance && <CircularProgress size={18} />}
                       </Stack>
                     </Stack>
                   </Stack>
-                  <SuperText fontSize="12px" color="warning">Will take ~30sec to update after bridging</SuperText>
+                  {/**
+                    <SuperText fontSize="12px" color="warning">Will take ~30sec to update after bridging</SuperText>
+                  */}
                 </Stack>
                 <form onSubmit={handleSubmit(onBridge)} style={{ width: '100%' }}>
                   <Stack width="100%" spacing={2} alignItems="center">
@@ -508,8 +535,8 @@ const Home: NextPage = () => {
                       rules={{
                         required: 'Required',
                         min: {
-                          value: 0,
-                          message: `Must be more than ${0}`,
+                          value: 0.000001,
+                          message: `Must be at least ${0.000001}`,
                         },
                         max: {
                           value: direction === 0 ? Number(fantomBrushBalance) : Number(sonicBrushBalance),
@@ -517,7 +544,7 @@ const Home: NextPage = () => {
                         },
                         validate: {
                           isNumber: (value: string) => /^\d+\.?\d*$/.test(value) || 'Must be a number',
-                          maxDecimals: (value: string) => !value.includes('.') || value.split('.')[1].length <= 18 || 'Max 18 decimals'
+                          maxDecimals: (value: string) => !value.includes('.') || value.split('.')[1].length <= 6 || 'Max 6 decimals'
                         }
                       }}
                     />
@@ -572,7 +599,7 @@ const Home: NextPage = () => {
                       type="submit"
                       variant="contained"
                       width="100%"
-                      loading={isApproving || isBridging}
+                      loading={isApproving || isBridging || isWaitingForFantomBalance || isWaitingForSonicBalance}
                       disabled={disabledInputs || !isValid || isWrongNetwork}
                     >
                       {needApproval && !isBridging ? (isApproving ? 'Approving...' : 'Approve') : isBridging ? 'Bridging...' : `Bridge ${direction === 0 ? 'to Sonic' : 'to Fantom'}`}
@@ -585,8 +612,9 @@ const Home: NextPage = () => {
               <Divider />
             </Box>
             <Box mb="0">
+              <SuperText fontSize="12px" color="subtle">No extra fees are added by us</SuperText>
               <a href="https://paintswap.finance" target="_blank" className={styles.linkContent}>
-                <Stack width="100%" direction="row" justifyContent="center" spacing={1}>
+                <Stack width="100%" direction="row" justifyContent="center" spacing={1} mt="4px">
                   <Image src="/images/paintswap_logo.svg" alt="PaintSwap" width={24} height={24} />
                   <span>Visit PaintSwap</span>
                 </Stack>
