@@ -288,7 +288,14 @@ const Home: NextPage = () => {
         }
         */
         try {
-          await estimateGasAndSendBrushApprove([bridgeFromFantom.address, amountToBridge])
+          const { receipt, events } = await estimateGasAndSendBrushApprove([bridgeFromFantom.address, amountToBridge])
+          // Check if the actual approval amount set in the wallet is enough
+          const approvalAmount = BigInt(events?.Approval.args['value'].toString())
+          const enoughApproval = approvalAmount >= amountToBridge
+          if (!enoughApproval) {
+            toastError && toastError(`Approval amount is not enough. Please try again.`, 'Failed')
+            return
+          }
           toastSuccess && toastSuccess(`Approved BRUSH!`, 'Success')
         } catch (e) {
           console.error('Failed approving BRUSH:', e)
@@ -363,9 +370,9 @@ const Home: NextPage = () => {
 
       console.info(`Bridge receipt:`, receipt)
       if (fromFantom) {
-        toastSuccess && toastSuccess(`Bridged ${data.amount} BRUSH to Sonic!`, 'Success')
+        toastSuccess && toastSuccess(`Bridged ${data.amount} BRUSH to Sonic! Funds will arrive shortly.`, 'Success')
       } else {
-        toastSuccess && toastSuccess(`Bridged ${data.amount} BRUSH to Fantom!`, 'Success')
+        toastSuccess && toastSuccess(`Bridged ${data.amount} BRUSH to Fantom! Funds will arrive shortly.`, 'Success')
       }
 
       // Clear input after successful bridge
@@ -501,7 +508,7 @@ const Home: NextPage = () => {
                         required: 'Required',
                         min: {
                           value: 0,
-                          message: `Min ${0}`,
+                          message: `Must be more than ${0}`,
                         },
                         max: {
                           value: direction === 0 ? Number(fantomBrushBalance) : Number(sonicBrushBalance),
@@ -567,7 +574,7 @@ const Home: NextPage = () => {
                       loading={isApproving || isBridging}
                       disabled={disabledInputs || !isValid || isWrongNetwork}
                     >
-                      {needApproval ? (isApproving ? 'Approving...' : 'Approve') : isBridging ? 'Bridging...' : `Bridge ${direction === 0 ? 'to Sonic' : 'to Fantom'}`}
+                      {needApproval && !isBridging ? (isApproving ? 'Approving...' : 'Approve') : isBridging ? 'Bridging...' : `Bridge ${direction === 0 ? 'to Sonic' : 'to Fantom'}`}
                     </SuperButton>
                   </Stack>
                 </form>
