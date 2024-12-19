@@ -1,5 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { Manrope } from "next/font/google"
+import { useEffect, useMemo, useRef, useState } from "react"
 import styles from "@/styles/Home.module.css"
 import type { NextPage } from 'next'
 import { useWeb3Modal } from '@web3modal/wagmi/react'
@@ -195,9 +194,11 @@ const Home: NextPage = () => {
     if (accountRef.current !== account) {
       setIsApproved(false)
       setValue('address', account ?? '')
+      trigger('address')
+      trigger('amount')
     }
     accountRef.current = account
-  }, [account, setValue])
+  }, [account, setValue, trigger])
 
   // If direction is 0 but isSonic, switch to fantom
   // If direction is 1 but isFantom, switch to sonic
@@ -514,10 +515,10 @@ const Home: NextPage = () => {
                           value: direction === 0 ? Number(fantomBrushBalance) : Number(sonicBrushBalance),
                           message: `Max ${direction === 0 ? fantomBrushBalance : sonicBrushBalance}`,
                         },
-                        pattern: {
-                          value: /^\d+\.*\d{0,18}$/,
-                          message: 'Must be a number',
-                        },
+                        validate: {
+                          isNumber: (value: string) => /^\d+\.?\d*$/.test(value) || 'Must be a number',
+                          maxDecimals: (value: string) => !value.includes('.') || value.split('.')[1].length <= 18 || 'Max 18 decimals'
+                        }
                       }}
                     />
                     <FormInputText
