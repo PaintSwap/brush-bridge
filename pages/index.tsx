@@ -449,10 +449,10 @@ const Home: NextPage = () => {
                   <Stack spacing={2} width="100%" justifyContent="center" direction="row">
                     <Stack spacing={1} alignItems="end" justifyContent="space-around">
                       <SuperText fontSize="14px" color="subtle">
-                        On Fantom
+                        <a href={`https://ftmscan.com/token/${brushAddress}?a=${account}`} target="_blank">On Fantom</a>
                       </SuperText>
                       <SuperText fontSize="14px" color="subtle">
-                        On Sonic
+                        <a href={`https://sonicscan.org/token/${bridgeFromSonic.address}?a=${account}`} target="_blank">On Sonic</a>
                       </SuperText>
                     </Stack>
                     <Stack spacing={1}  justifyContent="space-around">
