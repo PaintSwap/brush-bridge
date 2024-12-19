@@ -79,8 +79,9 @@ createWeb3Modal({
     '--w3m-color-mix-strength': 20
   },
   chainImages: {
-    [57054]: '/images/sonic.png',
+    [146]: '/images/sonic.png',
   },
+  allowUnsupportedChain: true,
 })
 
 ReactGA.initialize(gaID)

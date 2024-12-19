@@ -34,7 +34,7 @@ export const sonic: Chain = {
       blockCreated: 60,
     },
   },
-  name: 'Sonic Testnet',
+  name: 'Sonic',
   rpcUrls: {
    default: {http: ['https://rpc.soniclabs.com'] as const},
    public: {http: ['https://rpc.soniclabs.com'] as const}
