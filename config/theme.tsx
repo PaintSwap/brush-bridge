@@ -1,11 +1,6 @@
 import { createTheme } from '@mui/material/styles'
 import { orange, red } from '@mui/material/colors'
-import { Manrope } from 'next/font/google'
-
-const orbitron = Manrope({
-  subsets: ['latin'],
-  display: 'swap',
-})
+import { manrope } from '@/config/fonts'
 
 declare module '@mui/material/styles' {
   interface Palette {
@@ -18,7 +13,23 @@ declare module '@mui/material/styles' {
 
 const theme = createTheme({
   typography: {
-    fontFamily: orbitron.style.fontFamily,
+    fontFamily: manrope.style.fontFamily,
+    h1: {
+      fontWeight: 700,
+    },
+    h2: {
+      fontWeight: 600,
+    },
+    button: {
+      fontWeight: 500,
+      textTransform: 'none',
+    },
+    body1: {
+      fontWeight: 400,
+    },
+    body2: {
+      fontWeight: 400,
+    },
   },
   palette: {
     mode: 'dark',
@@ -38,6 +49,31 @@ const theme = createTheme({
     },
     warning: {
       main: orange[600],
+    },
+  },
+  components: {
+    MuiButton: {
+      styleOverrides: {
+        root: {
+          borderRadius: 8,
+        },
+      },
+    },
+    MuiCssBaseline: {
+      styleOverrides: {
+        body: {
+          scrollbarColor: "#6b6b6b #2b2b2b",
+          "&::-webkit-scrollbar, & *::-webkit-scrollbar": {
+            backgroundColor: "#2b2b2b",
+          },
+          "&::-webkit-scrollbar-thumb, & *::-webkit-scrollbar-thumb": {
+            borderRadius: 8,
+            backgroundColor: "#6b6b6b",
+            minHeight: 24,
+            border: "3px solid #2b2b2b",
+          },
+        },
+      },
     },
   },
 })

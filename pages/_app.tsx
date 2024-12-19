@@ -15,7 +15,7 @@ import { MaterialToastsProvider } from '@/contexts/MaterialToastContext'
 import ToastSnacks from '@/Components/ToastSnacks'
 import { MaterialToastsProviderExtra } from '@/contexts/MaterialToastContextExtra'
 import ToastSnacksExtra from '@/Components/ToastSnacksExtra'
-import dynamic from 'next/dynamic'
+import StyledComponentsRegistry from '@/pages/registry'
 
 // Client-side cache, shared for the whole session of the user in the browser.
 const clientSideEmotionCache = createEmotionCache()
@@ -63,7 +63,7 @@ export const wagmiConfig = createConfig({
       appLogoUrl: metadata.icons[0],
     })
   ],
-  ssr: false,
+  ssr: true,
   pollingInterval: 250,
 })
 
@@ -87,32 +87,26 @@ createWeb3Modal({
 ReactGA.initialize(gaID)
 const queryClient = new QueryClient()
 
-const App = (props: MyAppProps) => {
+export default function App(props: MyAppProps) {
   const { Component, emotionCache = clientSideEmotionCache, pageProps } = props
-
   return (
     <WagmiProvider config={wagmiConfig} reconnectOnMount={true}>
       <QueryClientProvider client={queryClient}>
-        <CacheProvider value={emotionCache}>
-          <ThemeProvider theme={theme}>
-            <MaterialToastsProvider>
-              <MaterialToastsProviderExtra>
-                {/* CssBaseline kickstart an elegant, consistent, and simple baseline to build upon. */}
-                <CssBaseline />
-                <ToastSnacks />
-                <ToastSnacksExtra />
-                <Component {...pageProps} />
-              </MaterialToastsProviderExtra>
-            </MaterialToastsProvider>
-          </ThemeProvider>
-        </CacheProvider>
+        <StyledComponentsRegistry>
+          <CacheProvider value={emotionCache}>
+            <ThemeProvider theme={theme}>
+              <MaterialToastsProvider>
+                <MaterialToastsProviderExtra>
+                  <CssBaseline />
+                  <ToastSnacks />
+                  <ToastSnacksExtra />
+                  <Component {...pageProps} />
+                </MaterialToastsProviderExtra>
+              </MaterialToastsProvider>
+            </ThemeProvider>
+          </CacheProvider>
+        </StyledComponentsRegistry>
       </QueryClientProvider>
     </WagmiProvider>
   )
 }
-
-// To solve mui button get different server and client styles for some reason
-// Set ssr: true if removing this
-export default dynamic(() => Promise.resolve(App), {
-  ssr: false,
-})

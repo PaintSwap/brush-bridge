@@ -24,8 +24,7 @@ import SuperText from "@/Components/SuperText"
 import SuperButton from "@/Components/SuperButton"
 import { FormInputText } from "@/Components/FormInputText"
 import Image from "next/image"
-
-const manrope = Manrope({ subsets: ["latin"] })
+import { manrope } from "@/config/fonts"
 
 const noFantom = (isFantom: boolean, switchChain: ({chainId}: {chainId: number}) => void) => {
   return (
