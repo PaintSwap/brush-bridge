@@ -1,9 +1,9 @@
 import { Chain, fantom} from 'wagmi/chains'
-export const SONIC_CHAIN_ID = 57054
+export const SONIC_CHAIN_ID = 146
 export const FANTOM_CHAIN_ID = 250
 
-export const brushBridgeFromFantomAddress = '0x79BA5e879e14577061813D38d3d3927Fd29b2861'
-export const brushBridgeFromSonicAddress = '0x12123e66A46246F616cE4B10ca24f95FA7c41C56'
+export const brushBridgeFromFantomAddress = '0x9D92cD1A5Cea3147e5Bf47EfF2D2C632C9839267'
+export const brushBridgeFromSonicAddress = '0xE51EE9868C1f0d6cd968A8B8C8376Dc2991BFE44'
 export const brushAddress = '0x85dec8c4B2680793661bCA91a8F129607571863d'
 
 export const FAST_INTERVAL = 3000
@@ -13,41 +13,36 @@ export const SLOW_INTERVAL = 60000
 
 export const FANTOM_RPC_URLS = [
   'https://rpcapi.fantom.network',
-  'https://fantom-rpc.publicnode.com',
   'https://rpc.fantom.network',
   'https://rpc2.fantom.network',
-  'https://fantom.blockpi.network/v1/rpc/public',
   'https://rpc.ankr.com/fantom',
   'https://fantom-mainnet.public.blastapi.io',
   'https://rpc.ftm.tools',
-  'https://fantom.publicnode.com',
-  'https://endpoints.omniatech.io/v1/fantom/mainnet/public',
-  'https://fantom.rpc.thirdweb.com',
 ]
 
 export const SONIC_RPC_URLS = (() => {
-  const rpcs = ['https://rpc.blaze.soniclabs.com']
+  const rpcs = ['https://rpc.soniclabs.com']
   return rpcs
 })()
 
 export const sonic: Chain = {
   ...fantom,
-  id: 57054,
+  id: 146,
   contracts: {
     multicall3: {
-      address: '0xF0c9d803C109518363cffa0319edA897E06d0230',
-      blockCreated: 16825253,
+      address: '0xca11bde05977b3631167028862be2a173976ca11',
+      blockCreated: 60,
     },
   },
   name: 'Sonic Testnet',
   rpcUrls: {
-   default: {http: ['https://rpc.blaze.soniclabs.com'] as const},
-   public: {http: ['https://rpc.blaze.soniclabs.com'] as const}
+   default: {http: ['https://rpc.soniclabs.com'] as const},
+   public: {http: ['https://rpc.soniclabs.com'] as const}
   },
   blockExplorers: {
     default: {
       name: 'Sonic Explorer',
-      url: 'https://blaze.soniclabs.com/',
+      url: 'https://sonicscan.org/',
     },
   },
   nativeCurrency: {

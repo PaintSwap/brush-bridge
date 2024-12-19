@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Manrope } from "next/font/google"
 import styles from "@/styles/Home.module.css"
 import type { NextPage } from 'next'
@@ -31,14 +31,14 @@ const noFantom = (isFantom: boolean, switchChain: ({chainId}: {chainId: number})
   return (
     <>
       {!isFantom && (
-        <>
-          <Stack spacing={1} alignItems="center" direction="row" className={styles.switchContent} onClick={() => switchChain({chainId: 250})}>
+        <div className={styles.switchContent} onClick={() => switchChain({chainId: 250})}>
+          <Stack spacing={1} alignItems="center" direction="row">
             <SuperText textAlign="center" width="100%" fontSize="14px" color="warning">
               {`Switch to Fantom Network`}
             </SuperText>
             <Image src="/images/fantom.png" alt="F" width={22} height={22} />
           </Stack>
-        </>
+        </div>
       )}
     </>
   )
@@ -48,14 +48,14 @@ const noSonic = (isSonic: boolean, switchChain: ({chainId}: {chainId: number}) =
   return (
     <>
       {!isSonic && (
-        <>
-          <Stack spacing={1} alignItems="center" direction="row" className={styles.switchContent} onClick={() => switchChain({chainId: SONIC_CHAIN_ID})}>
+        <div className={styles.switchContent} onClick={() => switchChain({chainId: SONIC_CHAIN_ID})}>
+          <Stack spacing={1} alignItems="center" direction="row">
             <SuperText textAlign="center" width="100%" fontSize="14px" color="warning">
               {`Switch to Sonic Network`}
             </SuperText>
             <Image src="/images/sonic.png" alt="S" width={22} height={22} />
           </Stack>
-        </>
+        </div>
       )}
     </>
   )
@@ -73,12 +73,13 @@ const Home: NextPage = () => {
   const [isApproving, setIsApproving] = useState(false)
   const [isBridging, setIsBridging] = useState(false)
   const [isApproved, setIsApproved] = useState(false)
+  
   // Start with a high number to avoid flashing text
   const [brushAllowance, setBrushAllowance] = useState<bigint>(1000000000000000000000000n)
 
   const { address: account, chain } = useAccount()
   const { open } = useWeb3Modal()
-  const { switchChain } = useSwitchChain({
+  const { switchChain, switchChainAsync } = useSwitchChain({
     config: wagmiConfig,
     mutation: {
       onSuccess() {
@@ -86,6 +87,9 @@ const Home: NextPage = () => {
       },
     },
   })
+
+  const directionRef = useRef(direction)
+  const accountRef = useRef(account)
 
   const fantomClient: any = createPublicClient({
     chain: fantomCustom,
@@ -127,10 +131,14 @@ const Home: NextPage = () => {
     setValue,
     trigger,
     control,
-    formState: { isValid },
+    formState: { isValid, errors },
   } = useForm({
-    mode: 'onChange',
+    mode: 'all',
     shouldUseNativeValidation: false,
+    defaultValues: {
+      amount: '',
+      address: account ?? '',
+    },
   })
 
   const inputValue = useWatch({
@@ -147,6 +155,10 @@ const Home: NextPage = () => {
     return Number.isFinite(Number(inputValue)) ? inputValue?.toString() ?? '0' : '0'
   }, [inputValue])
 
+  const disabledInputs = useMemo(() => {
+    return isApproving || isBridging || !account
+  }, [isApproving, isBridging, account])
+
   const mToast = useMaterialToast()
   const toastError = mToast?.toastError
   const toastSuccess = mToast?.toastSuccess
@@ -158,7 +170,7 @@ const Home: NextPage = () => {
 
   const { data: sonicBrushBalanceWei, refetch: refetchSonic } = useMultichainTokenBalance({
     client: sonicClient,
-    tokenAddress: brushAddress,
+    tokenAddress: bridgeFromSonic.address,
     address: account,
     refresh: true,
   })
@@ -181,8 +193,11 @@ const Home: NextPage = () => {
 
   // Set setIsApproved to false if account changes to reset the approval step
   useEffect(() => {
-    setIsApproved(false)
-    setValue('address', account)
+    if (accountRef.current !== account) {
+      setIsApproved(false)
+      setValue('address', account ?? '')
+    }
+    accountRef.current = account
   }, [account, setValue])
 
   // If direction is 0 but isSonic, switch to fantom
@@ -197,6 +212,15 @@ const Home: NextPage = () => {
   }, [direction, isSonic, isFantom, switchChain])
   */
 
+  // Revalidate inputs when direction changes
+  useEffect(() => {
+    if (directionRef.current !== direction) {
+      trigger('amount')
+      trigger('address')
+    }
+    directionRef.current = direction
+  }, [direction, trigger])
+
   const needApproval = useMemo(
     () => brushAllowance < parseEther(validInputValue) && !isApproved && direction === 0,
     [brushAllowance, isApproved, validInputValue, direction],
@@ -205,6 +229,38 @@ const Home: NextPage = () => {
   const toggleDirection = (direction: number) => {
     setDirection(direction)
   }
+
+  /**
+  const switchToFantom = useCallback(async () => {
+    try {
+      const res = await switchChainAsync({chainId: FANTOM_CHAIN_ID})
+      if (res.id !== FANTOM_CHAIN_ID) {
+        toastError && toastError(`Failed to switch to Fantom. Please try again.`, 'Failed')
+        return false
+      }
+      return true
+    } catch (e) {
+      console.error('Failed switching to Fantom:', e)
+      toastError && toastError(`Failed to switch to Fantom. Please try again.`, 'Failed')
+      return false
+    }
+  }, [switchChainAsync, toastError])
+
+  const switchToSonic = useCallback(async () => {
+    try {
+      const res = (await switchChainAsync({chainId: SONIC_CHAIN_ID})) as any // TODO: When sonic is supported, remove any
+      if (res.id !== SONIC_CHAIN_ID) {
+        toastError && toastError(`Failed to switch to Sonic. Please try again.`, 'Failed')
+        return false
+      }
+      return true
+    } catch (e) {
+      console.error('Failed switching to Sonic:', e)
+      toastError && toastError(`Failed to switch to Sonic. Please try again.`, 'Failed')
+      return false
+    }
+  }, [switchChainAsync, toastError])
+  */
 
   const onBridge = async (data: FieldValues) => {
     const amountToBridge = parseEther(data.amount ?? '0')
@@ -215,15 +271,23 @@ const Home: NextPage = () => {
       !bridgeToAddress ||
       !isAddress(bridgeToAddress, { strict: false }) ||
       bridgeToAddress.toLowerCase() !== inputAddress.toLowerCase() ||
-      data.amount !== inputValue
+      data.amount !== inputValue ||
+      isWrongNetwork
     )
       return
     const fromFantom = direction === 0
 
     if (fromFantom) {
       // Approve brush if sending from fantom
+
       if (needApproval) {
         setIsApproving(true)
+        // Switch network if needed
+        /**
+        if (!switchToFantom()) {
+          return
+        }
+        */
         try {
           await estimateGasAndSendBrushApprove([bridgeFromFantom.address, amountToBridge])
           toastSuccess && toastSuccess(`Approved BRUSH!`, 'Success')
@@ -232,7 +296,7 @@ const Home: NextPage = () => {
           toastError && toastError(`Could not approve BRUSH. Please try again.`, 'Failed')
           return
         } finally {
-          // Give some time for rpc to update
+          // Give some extra time for rpc to update
           await sleep(2000)
           setIsApproving(false)
           setIsApproved(false)
@@ -247,14 +311,22 @@ const Home: NextPage = () => {
       console.info(`Bridging ${data.amount} BRUSH from Sonic to Fantom`)
     }
     setIsBridging(true)
+    // Switch network if needed
+    /**
+    if (fromFantom && !switchToFantom()) {
+      return
+    }
+    if (!fromFantom && !switchToSonic()) {
+      return
+    }
+    */
 
     try {
       // Construct send parameters
       const options = Options.newOptions().addExecutorLzReceiveOption(200_000, 0).toHex().toString()
 
       const sendParams = {
-        // TODO sonic: change to sonic (I think)
-        dstEid: fromFantom ? 30112 : 30112, // Fantom or sonic
+        dstEid: fromFantom ? 30332 : 30112, // Fantom or sonic
         to: pad(bridgeToAddress, { size: 32 }), // Convert address to bytes32
         amountLD: amountToBridge,
         minAmountLD: amountToBridge,
@@ -346,10 +418,6 @@ const Home: NextPage = () => {
             <p className={styles.titleSub}>
               Move $BRUSH between Fantom and Sonic<br />
             </p>
-            <Stack>
-              <SuperText color="warning">DO NOT USE THIS YET</SuperText>
-              <SuperText color="warning">BRUSH WILL BE LOST!</SuperText>
-            </Stack>
 
             <Stack width="100%" spacing={2} alignItems="center" pt="16px">
               <Stack width="100%" direction={{xs: "column", sm: "row"}} alignItems="center" justifyContent="space-between" spacing={2}>
@@ -376,9 +444,7 @@ const Home: NextPage = () => {
                     To Fantom
                   </ToggleButton>
                 </ToggleButtonGroup>
-                {direction === 0 && !isFantom && account && noFantom(isFantom, switchChain)}
-                {direction === 1 && !isSonic && account && noSonic(isSonic, switchChain)}
-                <Stack width="fit-content" spacing={1} alignItems="center">
+                <Stack width="fit-content" spacing={0.5} alignItems="center">
                   <SuperText>BRUSH Balances</SuperText>
                   <Stack spacing={2} width="100%" justifyContent="center" direction="row">
                     <Stack spacing={1} alignItems="end" justifyContent="space-around">
@@ -400,9 +466,10 @@ const Home: NextPage = () => {
                       </Stack>
                     </Stack>
                   </Stack>
+                  <SuperText fontSize="12px" color="warning">Will take ~30sec to update after bridging</SuperText>
                 </Stack>
                 <form onSubmit={handleSubmit(onBridge)} style={{ width: '100%' }}>
-                  <Stack width="100%" spacing={2}>
+                  <Stack width="100%" spacing={2} alignItems="center">
                     <FormInputText
                       mode="text"
                       name="amount"
@@ -410,7 +477,7 @@ const Home: NextPage = () => {
                       label="BRUSH Amount"
                       placeholder={direction === 0 ? fantomBrushBalance : sonicBrushBalance}
                       autoComplete="off"
-                      disabled={isApproving || isBridging || isWrongNetwork || !account}
+                      disabled={disabledInputs}
                       disableReturn={true}
                       min={0}
                       max={direction === 0 ? Number(fantomBrushBalance) : Number(sonicBrushBalance)}
@@ -426,7 +493,7 @@ const Home: NextPage = () => {
                           disableRipple
                           disableFocusRipple
                           disableTouchRipple
-                          disabled={isApproving || isBridging || isWrongNetwork || !account}
+                          disabled={disabledInputs || !account}
                         >
                           Max
                         </SuperButton>
@@ -463,21 +530,21 @@ const Home: NextPage = () => {
                       }
                       placeholder="0x..."
                       autoComplete="off"
-                      disabled={isApproving || isBridging || isWrongNetwork || !account}
+                      disabled={disabledInputs}
                       disableReturn={true}
                       endAdornment={
                         <SuperButton
                           size="small"
                           variant="text"
                           onClick={() => {
-                            setValue('address', account)
+                            setValue('address', account ?? '')
                             trigger('address')
                           }}
                           style={{ marginLeft: '8px', padding: '0px 8px', minWidth: '40px', maxHeight: '24px' }}
                           disableRipple
                           disableFocusRipple
                           disableTouchRipple
-                          disabled={isApproving || isBridging || isWrongNetwork || !account}
+                          disabled={disabledInputs || !account}
                         >
                           Self
                         </SuperButton>
@@ -489,13 +556,17 @@ const Home: NextPage = () => {
                         },
                       }}
                     />
+                    <Stack width="fit-content">
+                      {direction === 0 && !isFantom && account && noFantom(isFantom, switchChain)}
+                      {direction === 1 && !isSonic && account && noSonic(isSonic, switchChain)}
+                    </Stack>
                     <SuperButton
                       size="large"
                       type="submit"
                       variant="contained"
                       width="100%"
                       loading={isApproving || isBridging}
-                      disabled={isApproving || isBridging || isWrongNetwork || !account}
+                      disabled={disabledInputs || !isValid || isWrongNetwork}
                     >
                       {needApproval ? (isApproving ? 'Approving...' : 'Approve') : isBridging ? 'Bridging...' : `Bridge ${direction === 0 ? 'to Sonic' : 'to Fantom'}`}
                     </SuperButton>

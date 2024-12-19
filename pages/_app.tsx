@@ -15,6 +15,7 @@ import { MaterialToastsProvider } from '@/contexts/MaterialToastContext'
 import ToastSnacks from '@/Components/ToastSnacks'
 import { MaterialToastsProviderExtra } from '@/contexts/MaterialToastContextExtra'
 import ToastSnacksExtra from '@/Components/ToastSnacksExtra'
+import dynamic from 'next/dynamic'
 
 // Client-side cache, shared for the whole session of the user in the browser.
 const clientSideEmotionCache = createEmotionCache()
@@ -62,8 +63,7 @@ export const wagmiConfig = createConfig({
       appLogoUrl: metadata.icons[0],
     })
   ],
-  // This must be used to not get hydration errors down the line
-  ssr: true,
+  ssr: false,
   pollingInterval: 250,
 })
 
@@ -86,7 +86,7 @@ createWeb3Modal({
 ReactGA.initialize(gaID)
 const queryClient = new QueryClient()
 
-export default function App(props: MyAppProps) {
+const App = (props: MyAppProps) => {
   const { Component, emotionCache = clientSideEmotionCache, pageProps } = props
 
   return (
@@ -109,3 +109,9 @@ export default function App(props: MyAppProps) {
     </WagmiProvider>
   )
 }
+
+// To solve mui button get different server and client styles for some reason
+// Set ssr: true if removing this
+export default dynamic(() => Promise.resolve(App), {
+  ssr: false,
+})

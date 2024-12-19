@@ -1,7 +1,7 @@
 import { useQuery, UseQueryResult } from '@tanstack/react-query'
 import { erc20Abi, PublicClient } from 'viem'
 import { useAccount } from 'wagmi'
-import { MEDIUM_INTERVAL } from '@/config/constants'
+import { FAST_INTERVAL } from '@/config/constants'
 import { getBaseAPIQueryOptions, isValidAddressNonStrict } from '@/helpers/Utilities'
 import useMultichainCalls from '@/hooks/useMultichainCalls'
 
@@ -63,7 +63,7 @@ const useMultichainTokenBalance = ({
       isValidAddressNonStrict(tokenAddress) &&
       !!accountToUse &&
       isValidAddressNonStrict(accountToUse),
-    ...getBaseAPIQueryOptions(refresh ? MEDIUM_INTERVAL : null),
+    ...getBaseAPIQueryOptions(refresh ? FAST_INTERVAL : null),
   })
 
   return queryHook
