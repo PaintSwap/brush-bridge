@@ -584,7 +584,7 @@ const Home: NextPage = () => {
               <Divider />
             </Box>
             <Box mb="0">
-              <a href="https://paintswap.io" target="_blank" className={styles.linkContent}>
+              <a href="https://paintswap.finance" target="_blank" className={styles.linkContent}>
                 <Stack width="100%" direction="row" justifyContent="center" spacing={1}>
                   <Image src="/images/paintswap_logo.svg" alt="PaintSwap" width={24} height={24} />
                   <span>Visit PaintSwap</span>
