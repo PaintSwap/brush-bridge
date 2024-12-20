@@ -413,6 +413,10 @@ const Home: NextPage = () => {
     }
   }
 
+  const toFixedNumberStringWithoutTrailingZeros = (value: string, decimals: number) => {
+    return Number(value).toFixed(decimals).replace(/\.?0+$/, '')
+  }
+
   return (
     <>
       <Head>
@@ -471,7 +475,7 @@ const Home: NextPage = () => {
                     </ToggleButton>
                   </ToggleButtonGroup>
                   {direction === 1 && (
-                    <SuperText fontSize="12px" lineHeight={0.5} color="warning">Sonic to Fantom bridge ends on Mar 28th, 2025</SuperText>
+                    <SuperText fontSize="12px" lineHeight={0.5} color="warning">Sonic to Fantom bridge ends on Mar 25th, 2025</SuperText>
                   )}
                 </Stack>
                 <Stack width="fit-content" spacing={0.5} alignItems="center">
@@ -509,7 +513,7 @@ const Home: NextPage = () => {
                       name="amount"
                       control={control}
                       label="BRUSH Amount"
-                      placeholder={direction === 0 ? fantomBrushBalance : sonicBrushBalance}
+                      placeholder={direction === 0 ? toFixedNumberStringWithoutTrailingZeros(fantomBrushBalance, 6) : toFixedNumberStringWithoutTrailingZeros(sonicBrushBalance, 6)}
                       autoComplete="off"
                       disabled={disabledInputs}
                       disableReturn={true}
@@ -520,7 +524,7 @@ const Home: NextPage = () => {
                           size="small"
                           variant="text"
                           onClick={() => {
-                            setValue('amount', direction === 0 ? fantomBrushBalance : sonicBrushBalance)
+                            setValue('amount', direction === 0 ? toFixedNumberStringWithoutTrailingZeros(fantomBrushBalance, 6) : toFixedNumberStringWithoutTrailingZeros(sonicBrushBalance, 6))
                             trigger('amount')
                           }}
                           style={{ marginLeft: '8px', padding: '0px 8px', minWidth: '40px', maxHeight: '24px' }}
@@ -540,7 +544,7 @@ const Home: NextPage = () => {
                         },
                         max: {
                           value: direction === 0 ? Number(fantomBrushBalance) : Number(sonicBrushBalance),
-                          message: `Max ${direction === 0 ? fantomBrushBalance : sonicBrushBalance}`,
+                          message: `Max ${direction === 0 ? toFixedNumberStringWithoutTrailingZeros(fantomBrushBalance, 6) : toFixedNumberStringWithoutTrailingZeros(sonicBrushBalance, 6)}`,
                         },
                         validate: {
                           isNumber: (value: string) => /^\d+\.?\d*$/.test(value) || 'Must be a number',
