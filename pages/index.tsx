@@ -414,7 +414,9 @@ const Home: NextPage = () => {
   }
 
   const toFixedNumberStringWithoutTrailingZeros = (value: string, decimals: number) => {
-    return Number(value).toFixed(decimals).replace(/\.?0+$/, '')
+    const multiplier = Math.pow(10, decimals)
+    const floored = Math.floor(Number(value) * multiplier) / multiplier
+    return floored.toFixed(decimals).replace(/\.?0+$/, '')
   }
 
   return (
@@ -492,12 +494,12 @@ const Home: NextPage = () => {
                     <Stack spacing={1}  justifyContent="space-around">
                       <Stack spacing={1} direction="row" alignItems="center">
                         <Image src="/images/brush_dark.png" alt="$BRUSH" width={22} height={22} />
-                        <SuperText>{formatNumber(fantomBrushBalance, 0, 6)}</SuperText>
+                        <SuperText>{formatNumber(toFixedNumberStringWithoutTrailingZeros(fantomBrushBalance, 6), 0, 6)}</SuperText>
                         {isWaitingForFantomBalance && <CircularProgress size={18} />}
                       </Stack>
                       <Stack spacing={1} direction="row" alignItems="center">
                         <Image src="/images/brush_dark.png" alt="$BRUSH" width={22} height={22} />
-                        <SuperText>{formatNumber(sonicBrushBalance, 0, 6)}</SuperText>
+                        <SuperText>{formatNumber(toFixedNumberStringWithoutTrailingZeros(sonicBrushBalance, 6), 0, 6)}</SuperText>
                         {isWaitingForSonicBalance && <CircularProgress size={18} />}
                       </Stack>
                     </Stack>
