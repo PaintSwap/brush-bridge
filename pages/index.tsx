@@ -520,7 +520,7 @@ const Home: NextPage = () => {
                       disabled={disabledInputs}
                       disableReturn={true}
                       min={0}
-                      max={direction === 0 ? Number(fantomBrushBalance) : Number(sonicBrushBalance)}
+                      max={direction === 0 ? Number(toFixedNumberStringWithoutTrailingZeros(fantomBrushBalance, 6)) : Number(toFixedNumberStringWithoutTrailingZeros(sonicBrushBalance, 6))}
                       endAdornment={
                         <SuperButton
                           size="small"
