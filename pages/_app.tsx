@@ -63,7 +63,7 @@ export const wagmiConfig = createConfig({
       appLogoUrl: metadata.icons[0],
     })
   ],
-  ssr: true,
+  ssr: false,
   pollingInterval: 250,
 })
 
