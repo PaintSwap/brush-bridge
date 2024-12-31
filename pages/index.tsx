@@ -1,13 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import styles from "@/styles/Home.module.css"
 import type { NextPage } from 'next'
-import { useWeb3Modal } from '@web3modal/wagmi/react'
 import { fallback, useAccount, useSwitchChain } from 'wagmi'
 import { abbreviateAddressAsString, formatNumber, sleep, trackEvent } from '@/helpers/Utilities'
-import { Divider, Box, Stack, ToggleButtonGroup, ToggleButton, IconButton, CircularProgress } from '@mui/material'
+import { Divider, Box, Stack, ToggleButtonGroup, ToggleButton, CircularProgress } from '@mui/material'
 import Head from "next/head"
 import { createHttpTransports, wagmiConfig } from "@/pages/_app"
-import NetworkButton from "@/Components/NetworkButton"
 import { SONIC_CHAIN_ID, FANTOM_CHAIN_ID, FANTOM_RPC_URLS, SONIC_RPC_URLS, fantomCustom, sonic, brushAddress } from "@/config/constants"
 import { createPublicClient, formatEther, isAddress, pad, parseEther } from "viem"
 import { FieldValues, useForm, useWatch } from 'react-hook-form'
@@ -24,6 +22,7 @@ import SuperButton from "@/Components/SuperButton"
 import { FormInputText } from "@/Components/FormInputText"
 import Image from "next/image"
 import { manrope } from "@/config/fonts"
+import { useAppKit } from "@reown/appkit/react"
 
 const noFantom = (isFantom: boolean, switchChain: ({chainId}: {chainId: number}) => void) => {
   return (
@@ -78,7 +77,7 @@ const Home: NextPage = () => {
   const [brushAllowance, setBrushAllowance] = useState<bigint>(1000000000000000000000000n)
 
   const { address: account, chain } = useAccount()
-  const { open } = useWeb3Modal()
+  const { open } = useAppKit()
   const { switchChain, switchChainAsync } = useSwitchChain({
     config: wagmiConfig,
     mutation: {
@@ -309,13 +308,14 @@ const Home: NextPage = () => {
           const approvalAmount = BigInt(events?.Approval.args['value'].toString())
           const enoughApproval = approvalAmount >= amountToBridge
           if (!enoughApproval) {
-            toastError && toastError(`Approval amount is not enough. Please try again.`, 'Failed')
+            !!toastError && toastError(`Approval amount is not enough. Please try again.`, 'Failed')
             return
           }
           toastSuccess && toastSuccess(`Approved BRUSH!`, 'Success')
         } catch (e) {
           console.error('Failed approving BRUSH:', e)
-          toastError && toastError(`Could not approve BRUSH. Please try again.`, 'Failed')
+          const err = e as any
+          !!toastError && toastError(`Could not approve BRUSH. Please try again.`, 'Failed')
           return
         } finally {
           // Give some extra time for rpc to update
@@ -366,7 +366,7 @@ const Home: NextPage = () => {
       })) as MessagingFee
 
       if (!bridgeFee || bridgeFee.nativeFee === 0n) {
-        toastError && toastError(`Can't get bridge fee. Please try again.`, 'Failed')
+        !!toastError && toastError(`Can't get bridge fee. Please try again.`, 'Failed')
         return
       }
 
@@ -404,7 +404,7 @@ const Home: NextPage = () => {
       trackEvent('BRUSH Bridging', `Bridged BRUSH to ${fromFantom ? 'Sonic' : 'Fantom'}`, `Bridge done`)
     } catch (e) {
       console.error('Failed bridging BRUSH:', e)
-      toastError && toastError(`Could not bridge BRUSH. Please try again.`, 'Failed')
+      !!toastError && toastError(`Could not bridge BRUSH. Please try again.`, 'Failed', (e as any)?.message)
       const err: any = e
       trackEvent('BRUSH Bridging', `Failed: Bridging BRUSH to ${fromFantom ? 'Sonic' : 'Fantom'}`, `Contract Fail: ${err?.code}`)
     } finally {

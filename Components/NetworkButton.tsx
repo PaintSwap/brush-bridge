@@ -1,8 +1,8 @@
 import { Button } from '@mui/material'
-import { useWeb3Modal } from '@web3modal/wagmi/react'
 import { useMemo } from 'react'
 import { useAccount, useChains } from 'wagmi'
 import styles from "@/styles/Home.module.css"
+import { useAppKit } from '@reown/appkit/react'
 
 const icons: {[key: number]: string} = {
   250: "/images/fantom.png",
@@ -17,7 +17,7 @@ const icons: {[key: number]: string} = {
 }
 
 const NetworkButton = ({}) => {
-  const { open } = useWeb3Modal()
+  const { open } = useAppKit()
   const { isConnected, chain } = useAccount()
   const chains = useChains()
   

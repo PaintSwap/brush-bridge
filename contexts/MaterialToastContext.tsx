@@ -7,6 +7,7 @@ export interface SnackbarMessage {
   message: string
   type: AlertColor
   key: number
+  extraMessage?: string
 }
 
 export interface State {
@@ -15,7 +16,7 @@ export interface State {
   messageInfo?: SnackbarMessage
 }
 
-export type ToastSignature = (message: string, title?: string) => void
+export type ToastSignature = (message: string, title?: string, extraMessage?: string) => void
 
 interface ContextProps {
   toastError: ToastSignature
@@ -44,6 +45,7 @@ export const MaterialToastsProvider: React.FC<Props> = ({ children }) => {
       // Set a new snack when we don't have an active one
       setMessageInfo({ ...snackPack[0] })
       setSnackPack((prev) => prev.slice(1))
+      console.log('messageInfo', messageInfo)
       setOpen(true)
     } else if (snackPack.length && messageInfo) {
       // Close an active snack when a new one is added, but only if the type is the same
@@ -66,21 +68,21 @@ export const MaterialToastsProvider: React.FC<Props> = ({ children }) => {
     setMessageInfo(undefined)
   }
 
-  const toast = React.useCallback((message: string, title: string, type: AlertColor) => {
-    setSnackPack((prev) => [...prev, { message, title: title, type, key: new Date().getTime() }])
+  const toast = React.useCallback((message: string, title: string, type: AlertColor, extraMessage?: string) => {
+    setSnackPack((prev) => [...prev, { message, title: title, type, key: new Date().getTime(), extraMessage }])
   }, [])
 
-  const toastError = (message: string, title?: string) => {
-    toast(message, title ?? 'Error', 'error')
+  const toastError = (message: string, title?: string, extraMessage?: string) => {
+    toast(message, title ?? 'Error', 'error', extraMessage)
   }
-  const toastInfo = (message: string, title?: string) => {
-    toast(message, title ?? 'Info', 'info')
+  const toastInfo = (message: string, title?: string, extraMessage?: string) => {
+    toast(message, title ?? 'Info', 'info', extraMessage)
   }
-  const toastSuccess = (message: string, title?: string) => {
-    toast(message, title ?? 'Success', 'success')
+  const toastSuccess = (message: string, title?: string, extraMessage?: string) => {
+    toast(message, title ?? 'Success', 'success', extraMessage)
   }
-  const toastWarning = (message: string, title?: string) => {
-    toast(message, title ?? 'Warning', 'warning')
+  const toastWarning = (message: string, title?: string, extraMessage?: string) => {
+    toast(message, title ?? 'Warning', 'warning', extraMessage)
   }
 
   return (

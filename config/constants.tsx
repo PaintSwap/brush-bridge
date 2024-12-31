@@ -16,7 +16,6 @@ export const FANTOM_RPC_URLS = [
   'https://rpc.fantom.network',
   'https://rpc2.fantom.network',
   'https://rpc.ankr.com/fantom',
-  'https://fantom-mainnet.public.blastapi.io',
   'https://rpc.ftm.tools',
 ]
 
