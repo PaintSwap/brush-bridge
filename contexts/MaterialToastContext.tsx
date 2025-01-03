@@ -45,7 +45,6 @@ export const MaterialToastsProvider: React.FC<Props> = ({ children }) => {
       // Set a new snack when we don't have an active one
       setMessageInfo({ ...snackPack[0] })
       setSnackPack((prev) => prev.slice(1))
-      console.log('messageInfo', messageInfo)
       setOpen(true)
     } else if (snackPack.length && messageInfo) {
       // Close an active snack when a new one is added, but only if the type is the same

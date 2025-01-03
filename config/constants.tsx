@@ -6,6 +6,9 @@ export const brushBridgeFromFantomAddress = '0x9D92cD1A5Cea3147e5Bf47EfF2D2C632C
 export const brushBridgeFromSonicAddress = '0xE51EE9868C1f0d6cd968A8B8C8376Dc2991BFE44'
 export const brushAddress = '0x85dec8c4B2680793661bCA91a8F129607571863d'
 
+export const layerZeroAPI = 'https://scan.layerzero-api.com/v1/messages/tx/'
+export const layerZeroTX = 'https://layerzeroscan.com/tx/'
+
 export const FAST_INTERVAL = 3000
 export const MEDIUM_INTERVAL = 10000
 export const MEDIUM_PLUS_INTERVAL = 30000

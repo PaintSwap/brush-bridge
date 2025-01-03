@@ -6,7 +6,7 @@ import { abbreviateAddressAsString, formatNumber, sleep, trackEvent } from '@/he
 import { Divider, Box, Stack, ToggleButtonGroup, ToggleButton, CircularProgress } from '@mui/material'
 import Head from "next/head"
 import { createHttpTransports, wagmiConfig } from "@/pages/_app"
-import { SONIC_CHAIN_ID, FANTOM_CHAIN_ID, FANTOM_RPC_URLS, SONIC_RPC_URLS, fantomCustom, sonic, brushAddress } from "@/config/constants"
+import { SONIC_CHAIN_ID, FANTOM_CHAIN_ID, FANTOM_RPC_URLS, SONIC_RPC_URLS, fantomCustom, sonic, brushAddress, layerZeroAPI, layerZeroTX } from "@/config/constants"
 import { createPublicClient, formatEther, isAddress, pad, parseEther } from "viem"
 import { FieldValues, useForm, useWatch } from 'react-hook-form'
 import useMaterialToast from "@/hooks/useMaterialToast"
@@ -72,6 +72,8 @@ const Home: NextPage = () => {
   const [isApproved, setIsApproved] = useState(false)
   const [isWaitingForFantomBalance, setIsWaitingForFantomBalance] = useState(false)
   const [isWaitingForSonicBalance, setIsWaitingForSonicBalance] = useState(false)
+  const [latestTxHash, setLatestTxHash] = useState<`0x${string}` | undefined>(undefined)
+  const [latestDestinationStatus, setLatestDestinationStatus] = useState<string | undefined>(undefined)
   
   // Start with a high number to avoid flashing text
   const [brushAllowance, setBrushAllowance] = useState<bigint>(1000000000000000000000000n)
@@ -152,13 +154,13 @@ const Home: NextPage = () => {
     client: sonicClient,
     tokenAddress: bridgeFromSonic.address,
     address: account,
-    refresh: true,
+    refresh: !isWaitingForSonicBalance,
   })
   const { data: fantomBrushBalanceWei, refetch: refetchFantom } = useMultichainTokenBalance({
     client: fantomClient,
     tokenAddress: brushAddress,
     address: account,
-    refresh: true,
+    refresh: !isWaitingForFantomBalance,
   })
   const sonicBrushBalance = formatEther(sonicBrushBalanceWei ?? 0n)
   const fantomBrushBalance = formatEther(fantomBrushBalanceWei ?? 0n)
@@ -223,6 +225,7 @@ const Home: NextPage = () => {
   }, [direction, trigger])
 
   // Reset waiting for balances when balances updates
+  /**
   useEffect(() => {
     if (fantomBrushBalanceWei !== undefined) {
       setIsWaitingForFantomBalance(false)
@@ -234,6 +237,39 @@ const Home: NextPage = () => {
       setIsWaitingForSonicBalance(false)
     }
   }, [sonicBrushBalanceWei])
+  */
+
+  // Call layerZeroAPI every other second for status updates
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      if (!isWaitingForFantomBalance && !isWaitingForSonicBalance) return
+      try {
+        const res = await fetch(`${layerZeroAPI}${latestTxHash}`)
+        const data = await res.json()
+        if (data.code === 4040) {
+          setLatestDestinationStatus('INITIATING')
+          return // Ignore message not found
+        }
+        console.info(`LayerZero Response:`, data)
+
+        if (data?.data?.[0]?.destination?.status === 'SUCCEEDED') {
+          console.info(`Bridge tx successful`)
+          setIsWaitingForFantomBalance(false)
+          setIsWaitingForSonicBalance(false)
+          setLatestDestinationStatus(data?.data?.[0]?.destination?.status)
+          // Refetch balance
+          refetchFantom()
+          refetchSonic()
+          toastSuccess && toastSuccess(`Funds arrived on ${direction === 0 ? 'Sonic' : 'Fantom'}`, 'Bridging Done')
+        } else if (data?.data?.[0]?.destination) {
+          setLatestDestinationStatus(data?.data?.[0]?.destination?.status)
+        }
+      } catch (e) {
+        console.error(`Failed to fetch LayerZero API:`, e)
+      }
+    }, 2000)
+    return () => clearInterval(interval)
+  }, [latestTxHash, isWaitingForFantomBalance, isWaitingForSonicBalance, direction, refetchFantom, refetchSonic, toastSuccess])
 
   const needApproval = useMemo(
     () => brushAllowance < parseEther(validInputValue) && !isApproved && direction === 0,
@@ -290,6 +326,7 @@ const Home: NextPage = () => {
     )
       return
     const fromFantom = direction === 0
+    setLatestDestinationStatus('APPROVING')
 
     if (fromFantom) {
       // Approve brush if sending from fantom
@@ -316,6 +353,7 @@ const Home: NextPage = () => {
           console.error('Failed approving BRUSH:', e)
           const err = e as any
           !!toastError && toastError(`Could not approve BRUSH. Please try again.`, 'Failed')
+          setLatestDestinationStatus(undefined)
           return
         } finally {
           // Give some extra time for rpc to update
@@ -383,28 +421,29 @@ const Home: NextPage = () => {
         : estimateGasAndSendBrushBridgeSendFromSonic
 
       const { receipt, events } = await bridgeFunction([sendParams, feeStruct, account], bridgeFee.nativeFee)
+      setLatestTxHash(receipt?.transactionHash)
 
       console.info(`Bridge receipt:`, receipt)
       if (fromFantom) {
         toastSuccess && toastSuccess(`Sent ${data.amount} BRUSH! Funds will arrive on Sonic shortly.`, 'Success')
         setIsWaitingForSonicBalance(true)
+        await sleep(1000)
+        refetchFantom()
       } else {
         toastSuccess && toastSuccess(`Sent ${data.amount} BRUSH! Funds will arrive on Fantom shortly.`, 'Success')
         setIsWaitingForFantomBalance(true)
+        await sleep(1000)
+        refetchSonic()
       }
 
       // Clear input after successful bridge
       setValue('amount', '')
 
-      // Refresh balances
-      await sleep(1000)
-      refetchFantom()
-      refetchSonic()
-
       trackEvent('BRUSH Bridging', `Bridged BRUSH to ${fromFantom ? 'Sonic' : 'Fantom'}`, `Bridge done`)
     } catch (e) {
       console.error('Failed bridging BRUSH:', e)
-      !!toastError && toastError(`Could not bridge BRUSH. Please try again.`, 'Failed', (e as any)?.message)
+      !!toastError && toastError(`Could not bridge BRUSH. Please try again.`, 'Failed')
+      setLatestDestinationStatus(undefined)
       const err: any = e
       trackEvent('BRUSH Bridging', `Failed: Bridging BRUSH to ${fromFantom ? 'Sonic' : 'Fantom'}`, `Contract Fail: ${err?.code}`)
     } finally {
@@ -507,6 +546,17 @@ const Home: NextPage = () => {
                   {/**
                     <SuperText fontSize="12px" color="warning">Will take ~30sec to update after bridging</SuperText>
                   */}
+                  {!!latestDestinationStatus && (
+                    <Stack width="fit-content" spacing={0.5} alignItems="center">
+                      {(latestDestinationStatus === 'WAITING' || latestDestinationStatus === 'VALIDATING_TX' || latestDestinationStatus === 'SUCCEEDED') ? (
+                        <SuperText fontSize="14px" color="subtle">
+                          <a href={`${layerZeroTX}${latestTxHash}`} target="_blank">{`Bridge Status: ${latestDestinationStatus}`}</a>
+                        </SuperText>
+                      ) : (
+                        <SuperText fontSize="14px" color="subtle">{`Bridge Status: ${latestDestinationStatus}`}</SuperText>
+                      )}
+                    </Stack>
+                  )}
                 </Stack>
                 <form onSubmit={handleSubmit(onBridge)} style={{ width: '100%' }}>
                   <Stack width="100%" spacing={2} alignItems="center">
