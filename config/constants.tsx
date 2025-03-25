@@ -19,7 +19,6 @@ export const FANTOM_RPC_URLS = [
   'https://rpc.fantom.network',
   'https://rpc2.fantom.network',
   'https://rpc.ankr.com/fantom',
-  'https://rpc.ftm.tools',
 ]
 
 export const SONIC_RPC_URLS = (() => {

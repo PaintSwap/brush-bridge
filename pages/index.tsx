@@ -485,7 +485,7 @@ const Home: NextPage = () => {
           <div className={styles.mainPanel}>
             <h1 className={styles.title}>BRUSH Bridge</h1>
             <p className={styles.titleSub}>
-              Move $BRUSH between Fantom and Sonic<br />
+              Move $BRUSH from Fantom to Sonic<br />
             </p>
 
             <Stack width="100%" spacing={2} alignItems="center" pt="16px">
@@ -499,26 +499,6 @@ const Home: NextPage = () => {
                 {/** <NetworkButton /> **/}
               </Stack>
               <Stack width="100%" spacing={2} alignItems="center">
-                <Stack width="100%" spacing={1.5} alignItems="center">
-                  <ToggleButtonGroup
-                    fullWidth={true}
-                    value={direction}
-                    size="medium"
-                    exclusive
-                    onChange={(event: any) => toggleDirection(Number(event.target.value))}
-                    disabled={disabledInputs}
-                  >
-                    <ToggleButton value={0} aria-label="fantom-to-sonic">
-                      To Sonic
-                    </ToggleButton>
-                    <ToggleButton value={1} aria-label="sonic-to-fantom">
-                      To Fantom
-                    </ToggleButton>
-                  </ToggleButtonGroup>
-                  {direction === 1 && (
-                    <SuperText fontSize="12px" lineHeight={0.5} color="warning">Sonic to Fantom bridge ends on Mar 25th, 2025</SuperText>
-                  )}
-                </Stack>
                 <Stack width="fit-content" spacing={0.5} alignItems="center">
                   <SuperText>BRUSH Balances</SuperText>
                   <Stack spacing={2} width="100%" justifyContent="center" direction="row">
@@ -669,10 +649,10 @@ const Home: NextPage = () => {
             </Box>
             <Box mb="0">
               <SuperText fontSize="12px" color="subtle">No extra fees are added by us</SuperText>
-              <a href="https://paintswap.finance" target="_blank" className={styles.linkContent}>
+              <a href="https://paintswap.io" target="_blank" className={styles.linkContent}>
                 <Stack width="100%" direction="row" justifyContent="center" spacing={1} mt="4px">
                   <Image src="/images/paintswap_logo.svg" alt="PaintSwap" width={24} height={24} />
-                  <span>Visit PaintSwap</span>
+                  <span>Visit Paintswap</span>
                 </Stack>
               </a>
             </Box>
